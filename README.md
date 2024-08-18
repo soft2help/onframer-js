@@ -10,3 +10,7 @@ OnFramer-JS provides a set of JavaScript tools and utilities specifically design
 - **Transparency Control:** Adjust window opacity dynamically to create sleek, modern interfaces.
 - **Multi-Monitor Support:** Seamlessly manage and position windows across multiple monitors.
 - **Remote Control via WebSockets:** Interact with and control your application remotely in real-time.
+
+### Install
+
+More info in https://onframer.io/releases 
