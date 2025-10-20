@@ -1,0 +1,189 @@
+@import url('https://fonts.googleapis.com/css?family=Poppins:200,300,400,500,600,700,800,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Handlee&display=swap');
+*
+{
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	font-family: 'Poppins', sans-serif;
+}
+:root 
+{
+	--size: 225px;
+}
+body 
+{
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 100vh;
+	background: #2f363e;
+}
+.container 
+{
+	position: relative;
+	width: 100%;
+	min-height: 100vh;
+	display: flex;
+	justify-content: flex-start;
+	align-items: flex-start;
+	flex-wrap: wrap;
+	gap: 50px;
+	padding: 80px;
+}
+.container .notes 
+{
+	display: flex;
+	flex-wrap: wrap;
+	gap: 50px;
+	justify-content: flex-start;
+	align-items: flex-start;
+}
+.container .notes .note 
+{
+	position: relative;
+	width: var(--size);
+	height: var(--size);
+	background: linear-gradient(#F9EFAF, #F7E98D);
+	padding: 20px;
+	box-shadow: 0 15px 35px rgba(0,0,0,0.25);
+}
+.container .notes .note::before 
+{
+	content: 'Double Click to Remove This Note';
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	width: 100%;
+	background: rgba(0,0,0,0.15);
+	padding: 3px 0;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-size: 0.85em;
+	color: rgba(0,0,0,0.75);
+	opacity: 0;
+	transition: 0.5s;
+}
+.container .notes .note:hover::before 
+{
+	opacity: 1;
+}
+#create 
+{
+	position: relative;
+	width: var(--size);
+	height: var(--size);
+	background: rgba(255,255,255,0.15);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-size: 6em;
+}
+#create i 
+{
+	position: absolute;
+	color: #fff;
+}
+.createBox 
+{
+	position: relative;
+	width: var(--size);
+	height: var(--size);
+	display: none;
+	z-index: 1000;
+}
+.createBox textarea	
+{
+	position: absolute;
+	top: 0;
+	left: 0;
+	padding: 20px;
+	width: var(--size);
+	height: var(--size);
+	outline: none;
+	resize: none;
+	font-size: 0.2em;
+}
+.details h3 
+{
+	font-size: 1.45em;
+	font-family: 'Handlee', cursive;
+}
+.close 
+{
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	cursor: pointer;
+}
+
+.details div {
+	font-family: 'Handlee', cursive;
+	font-size: 1.45em;
+	word-break: break-all;
+	white-space: pre-wrap;
+}
+
+#closeApp {
+   position: absolute;
+    z-index: 1000;
+    right: 0px;
+    top: 80px;
+    height: 0px;
+  }
+
+/* Close Button */
+.close-button {
+width: 40px;
+height: 40px;
+box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+border-radius: 50%;
+background-color: white;
+left: 50%;
+top: 50%;
+margin-top: -75px;
+margin-left: -75px;
+position: absolute;
+display: block;
+z-index: 200;
+text-indent: -9999px;
+}
+
+.close-button:before,
+.close-button:after {
+content: '';
+width: 55%;
+height: 2px;
+background: #2f363e;
+position: absolute;
+top: 48%;
+left: 22%;
+-webkit-transform: rotate(-45deg);
+-moz-transform: rotate(-45deg);
+-ms-transform: rotate(-45deg);
+-o-transform: rotate(-45deg);
+transform: rotate(-45deg);
+-webkit-transition: all 0.3s ease-out;
+-moz-transition: all 0.3s ease-out;
+-ms-transition: all 0.3s ease-out;
+-o-transition: all 0.3s ease-out;
+transition: all 0.3s ease-out;
+}
+
+.close-button:after {
+-webkit-transform: rotate(45deg);
+-moz-transform: rotate(45deg);
+-ms-transform: rotate(45deg);
+-o-transform: rotate(45deg);
+transform: rotate(45deg);
+}
+
+.close-button:hover:before,
+.close-button:hover:after {
+-webkit-transform: rotate(180deg);
+-moz-transform: rotate(180deg);
+-ms-transform: rotate(180deg);
+-o-transform: rotate(180deg);
+transform: rotate(180deg);
+}

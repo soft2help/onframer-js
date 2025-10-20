@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>60 Seconds Timer | CSS Only</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="card drag-container">
+      <div class="card">
+        <div class="time">
+          <div class="dot"></div>
+          <svg>
+            <circle cx="70" cy="70" r="70"></circle>
+            <circle cx="70" cy="70" r="70"></circle>
+          </svg>
+          <div class="number">
+            <div>
+              <h2>
+                <span>0</span>
+                <span>1</span>
+                <span>2</span>
+                <span>3</span>
+                <span>4</span>
+                <span>5</span>
+                <!-- total no. of span tag = 6 -->
+              </h2>
+              <h2>
+                <span>0</span>
+                <span>1</span>
+                <span>2</span>
+                <span>3</span>
+                <span>4</span>
+                <span>5</span>
+                <span>6</span>
+                <span>7</span>
+                <span>8</span>
+                <span>9</span>
+                <!-- total no. of span tag = 10 -->
+              </h2>
+            </div>
+            <p>Seconds</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.0-beta/onframer.js"></script>
+    <script>
+      function fullScreenTransparent() {
+        OnFramer.sendMessage("Fullscreen").then(function () {
+          document.body.style.backgroundColor = "transparent";
+        });
+      }
+
+      function setAlwaysOnTop() {
+        OnFramer.sendMessage("AlwaysOnTop");
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        // fullScreenTransparent();
+        setAlwaysOnTop();
+
+        const left = 0;
+        const top = 0;
+        const width = 250;
+        const height = 250;
+        // OnFramer.sendMessage("Position", `${left},${top},${width},${height}`);
+      });
+    </script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const dragContainer = document.querySelector(".drag-container");
+
+        let isDragging = false;
+        let startX = 0;
+        const dragThreshold = 5;
+
+        function setAppRegion(element, value) {
+          element.style.webkitAppRegion = value;
+          Array.from(element.children).forEach((child) =>
+            setAppRegion(child, value)
+          );
+        }
+
+        function beginDrag() {
+          isDragging = true;
+          dragContainer.classList.add("dragging");
+          setAppRegion(dragContainer, "drag");
+          console.log("Begin dragging");
+        }
+
+        function endDrag() {
+          if (!isDragging) return;
+          isDragging = false;
+          dragContainer.classList.remove("dragging");
+          setAppRegion(dragContainer, "no-drag");
+          console.log("End dragging");
+        }
+
+        function onMouseMove(e) {
+          if (!isDragging && Math.abs(e.clientX - startX) > dragThreshold) {
+            beginDrag();
+          }
+        }
+
+        function onMouseUp() {
+          endDrag();
+          window.removeEventListener("mousemove", onMouseMove);
+          window.removeEventListener("mouseup", onMouseUp);
+          window.removeEventListener("mouseleave", onMouseUp);
+          window.removeEventListener("blur", onMouseUp);
+        }
+
+        dragContainer.addEventListener("mousedown", (e) => {
+          startX = e.clientX;
+          isDragging = false;
+          window.addEventListener("mousemove", onMouseMove);
+          window.addEventListener("mouseup", onMouseUp);
+          window.addEventListener("mouseleave", onMouseUp);
+          window.addEventListener("blur", onMouseUp);
+        });
+
+        // Optional: call setAlwaysOnTop() or fullScreenTransparent()
+        // setAlwaysOnTop();
+
+        setAppRegion(dragContainer, "no-drag"); // start with no-drag to allow interaction
+      });
+    </script>
+  </body>
+</html>

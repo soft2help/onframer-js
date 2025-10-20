@@ -1,0 +1,191 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,900&display=swap');
+*
+{
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	font-family: 'Roboto', sans-serif;
+}
+body 
+{
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 100vh;
+	background: #000;
+}
+.card 
+{
+	position: relative;
+	width: 250px;
+	height: 250px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	animation: changeColor 10s linear infinite;
+}
+
+.drag-container {
+	-webkit-app-region: no-drag;
+	cursor: grab;
+}
+
+.drag-container.dragging {
+	-webkit-app-region: drag;
+	cursor: grabbing;
+}
+
+
+@keyframes changeColor 
+{
+	0% 
+	{
+		filter: hue-rotate(0deg);
+	}
+	100% 
+	{
+		filter: hue-rotate(720deg);
+	}
+}
+.time
+{
+	position: relative;
+	width: 150px;
+	height: 150px;
+	border-radius: 50%;
+}
+.time svg 
+{
+	position: relative;
+	width: 150px;
+	height: 150px;
+	transform: rotate(270deg);
+
+}
+.time svg circle 
+{
+	width: 100%;
+	height: 100%;
+	fill: none;
+	stroke: #191919;
+	stroke-width: 2;
+	transform: translate(5px,5px);
+}
+.time svg circle:nth-child(2)
+{
+	stroke: #00ff43;
+	stroke-dasharray: 440;
+	stroke-dashoffset: 440;
+	animation: animate 60s steps(60) infinite;
+}
+@keyframes animate 
+{
+	0%
+	{
+		stroke-dashoffset: 440;
+	}
+	100%
+	{
+		stroke-dashoffset: 0;
+	}
+}
+.dot
+{
+	position: absolute;
+	inset: 5px;
+	border-radius: 50%;
+	z-index: 10;
+	animation: animateDot 60s steps(60) infinite;
+}
+.dot::before 
+{
+	content: '';
+	position: absolute;
+	top: -5px;
+	left: 50%;
+	width: 10px;
+	height: 10px;
+	background: #00ff43;
+	transform: translateX(-50%);
+	border-radius: 50%;
+	box-shadow: 0 0 10px #00ff43,
+	0 0 30px #00ff43;
+}
+@keyframes animateDot 
+{
+	0% 
+	{
+		transform: rotate(0deg);
+	}
+	100% 
+	{
+		transform: rotate(360deg);
+	}
+}
+.time .number 
+{
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	flex-direction: column;
+}
+.time .number div 
+{
+	display: flex;
+}
+.time .number div h2 
+{
+	display: flex;
+	flex-direction: column;
+	color: #fff;
+	font-weight: 700;
+	font-size: 2.5em;
+	height: 45px;
+	overflow: hidden;
+}
+.time .number div h2 span 
+{
+	height: 50px;
+	line-height: 50px;
+	animation: animateNumber1 60s steps(6) infinite;
+}
+.time .number p 
+{
+	font-weight: 300;
+	font-size: 0.75em;
+	color: rgba(255,255,255,0.5);
+}
+@keyframes animateNumber1 
+{
+	0% 
+	{
+		transform: translateY(0px);
+	}
+	100% 
+	{
+		/*  50 * 6 = 300*/
+		transform: translateY(-300px);
+	}
+}
+.time .number div h2:nth-child(2) span 
+{
+	animation: animateNumber2 10s steps(10) infinite;
+}
+
+@keyframes animateNumber2 
+{
+	0% 
+	{
+		transform: translateY(0px);
+	}
+	100% 
+	{
+		/*  50 * 10 = 500*/
+		transform: translateY(-500px);
+	}
+}

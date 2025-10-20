@@ -1,0 +1,253 @@
+body {
+    margin: 50px;
+    padding: 0px;
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+  }
+
+  .photo-menu {
+    white-space: nowrap;
+    margin-top: 8px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.6);
+    background-color: transparent;
+    padding: 10px 0;
+    pointer-events: auto;
+  }
+
+  .photo-menu::-webkit-scrollbar {
+    height: 10px;
+  }
+
+  .photo-menu::-webkit-scrollbar-track {
+    background: #333;
+    border-radius: 10px;
+  }
+
+  .photo-menu img {
+    height: 120px;
+    margin: 0 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .photo-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 10px;
+    background-color: #ffffff;
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    min-width: 140px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .photo-item img {
+    height: 100px;
+    object-fit: contain;
+    border-radius: 12px;
+    margin-bottom: 10px;
+  }
+
+  .photo-item span {
+    font-size: 14px;
+    font-weight: 500;
+    color: #000000;
+    text-align: center;
+    font-weight: bold;
+  }
+
+  .scroll-container {
+    display: inline-flex;
+    width: max-content;
+    animation-name: scroll-left;
+    animation-duration: var(--scroll-duration, 30s);
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-play-state: running;
+    pointer-events: auto;
+    -webkit-app-region: drag;
+  }
+  
+.scroll-container.dragging {
+  cursor: grabbing;
+}
+
+  .scroll-container img {
+    height: 120px;
+    margin: 0 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .scroll-container div:hover {
+    transform: scale(1.1);
+  }
+
+  .photo-menu:hover .scroll-container {
+    animation-play-state: paused;
+  }
+  
+  @keyframes scroll-left {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(var(--scroll-distance));
+    }
+  }
+
+  .window {
+    overflow: hidden;
+    background-color: transparent;
+    position: relative;
+    pointer-events: auto;
+  }
+
+  .transition {
+    -webkit-transition: all 1s ease-out;
+    -moz-transition: all 1s ease-out;
+    -ms-transition: all 1s ease-out;
+    -o-transition: all 1s ease-out;
+    transition: all 1s ease-out;
+  }
+
+  .rotate-neg45 {
+    -webkit-transform: rotate(-45deg);
+    -moz-transform: rotate(-45deg);
+    -ms-transform: rotate(-45deg);
+    -o-transform: rotate(-45deg);
+    transform: rotate(-45deg);
+    -webkit-transition: all 0.3s ease-out;
+    -moz-transition: all 0.3s ease-out;
+    -ms-transition: all 0.3s ease-out;
+    -o-transition: all 0.3s ease-out;
+    transition: all 0.3s ease-out;
+  }
+
+  .rotate-45 {
+    -webkit-transform: rotate(45deg);
+    -moz-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    -o-transform: rotate(45deg);
+    transform: rotate(45deg);
+    -webkit-transition: all 0.3s ease-out;
+    -moz-transition: all 0.3s ease-out;
+    -ms-transition: all 0.3s ease-out;
+    -o-transition: all 0.3s ease-out;
+    transition: all 0.3s ease-out;
+  }
+
+  .rotate-180 {
+    -webkit-transform: rotate(180deg);
+    -moz-transform: rotate(180deg);
+    -ms-transform: rotate(180deg);
+    -o-transform: rotate(180deg);
+    transform: rotate(180deg);
+  }
+
+  /* .square(150px) mixin */
+  .square-150 {
+    width: 150px;
+    height: 150px;
+  }
+
+  /* Colors */
+  :root {
+    --white: #3f3a3a;
+  }
+
+  .drag-handle {
+    position: absolute;
+    height: 38px;
+    border-radius: 38px;
+    top: -44px;
+    right: -5px;
+    width: auto;
+    padding: 15px 30px;
+    cursor: grab;
+    border: 0;
+    background-color: white;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    -webkit-app-region: drag;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .drag-handle img {
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+  }
+
+  #closeApp {
+   position: absolute;
+    z-index: 1000;
+    right: -85px;
+    top: 30px;
+    height: 0px;
+  }
+
+  /* Close Button */
+  .close-button {
+    width: 40px;
+    height: 40px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    border-radius: 50%;
+    background-color: white;
+    left: 50%;
+    top: 50%;
+    margin-top: -75px;
+    margin-left: -75px;
+    position: absolute;
+    display: block;
+    z-index: 200;
+    text-indent: -9999px;
+  }
+
+  .close-button:before,
+  .close-button:after {
+    content: '';
+    width: 55%;
+    height: 2px;
+    background: var(--white);
+    position: absolute;
+    top: 48%;
+    left: 22%;
+    -webkit-transform: rotate(-45deg);
+    -moz-transform: rotate(-45deg);
+    -ms-transform: rotate(-45deg);
+    -o-transform: rotate(-45deg);
+    transform: rotate(-45deg);
+    -webkit-transition: all 0.3s ease-out;
+    -moz-transition: all 0.3s ease-out;
+    -ms-transition: all 0.3s ease-out;
+    -o-transition: all 0.3s ease-out;
+    transition: all 0.3s ease-out;
+  }
+
+  .close-button:after {
+    -webkit-transform: rotate(45deg);
+    -moz-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    -o-transform: rotate(45deg);
+    transform: rotate(45deg);
+  }
+
+  .close-button:hover:before,
+  .close-button:hover:after {
+    -webkit-transform: rotate(180deg);
+    -moz-transform: rotate(180deg);
+    -ms-transform: rotate(180deg);
+    -o-transform: rotate(180deg);
+    transform: rotate(180deg);
+  }

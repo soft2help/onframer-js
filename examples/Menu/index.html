@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Menu</title>
+    <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f0f0f0;
+    }
+
+    .rectangle {
+      width: 133px;
+      height: 133px;
+      background-color: #3498db;
+      border: 2px solid #2980b9;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="rectangle"></div>
+</body>
+
+    <script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.0-beta/onframer.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js/onframer-screens.js"></script>
+    <script src="./onframer-utils.js"></script>
+    <!-- <script src="./scripts.js"></script> -->
+
+    <script>
+
+
+      async function setPos(nScreen, col, row, adapte){
+        await infoMonitors.init(3,3);
+
+        let scale = window.devicePixelRatio;
+
+        let infoDesiredMonitor = infoMonitors.infoScreens[nScreen-1];
+
+        let mRight = infoDesiredMonitor["rcMonitor.right"];
+        let mLeft = infoDesiredMonitor["rcMonitor.left"];
+        let mTop = infoDesiredMonitor["rcMonitor.top"];
+        let mBottom = infoDesiredMonitor["rcMonitor.bottom"];
+
+        let cellWidth = parseInt(((mRight - mLeft)/scale)/ infoMonitors.nCols);
+        let cellHeight = parseInt(((mBottom - mTop)/scale)/ infoMonitors.nRows);
+
+        let left = parseInt(mLeft + (cellWidth * (col - 1)))
+
+        let top = parseInt(mTop + (cellHeight * (row - 1)))
+
+        console.log("")
+        
+        console.log(`Setting position for screen ${nScreen}: left=${left}, top=${top}, width=${cellWidth}, height=${cellHeight}`);
+
+        OnFramer.sendMessage("Position", `${left},${top},${cellWidth},${cellHeight}`);
+      }
+
+      async function setPosV2(nScreen, col, row, adapte){
+        await infoMonitors.getInfo();
+        await infoMonitors.init(3,3);
+
+        const { left, top, width, height } = infoMonitors.getCellBounds(nScreen, col, row, adapte);
+
+        
+        console.log(`Setting position for screen ${nScreen}: left=${left}, top=${top}, width=${width}, height=${height}`);
+        OnFramer.sendMessage("Position", `${left},${top},${width},${height}`);
+
+      }
+
+			document.addEventListener("DOMContentLoaded", async function () {
+
+        // infoMonitors.init(3,3)
+      
+      });
+
+    </script>
+
+
+  </body>
+</html>
