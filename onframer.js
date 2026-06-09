@@ -86,4 +86,15 @@ let OnFramer = {
   unmute: () => {
     return OnFramer.sendMessage("UnMute");
   },
+  // Click-through: when ignore=true, mouse events pass to the window behind.
+  // opts.forward is reserved for mouse-move forwarding (not yet active).
+  // Toggle per element (mouseenter -> false on opaque, mouseleave -> true) to
+  // make a transparent overlay interactive only over its opaque parts.
+  setIgnoreMouseEvents: (ignore, opts) => {
+    var forward = opts && opts.forward ? 1 : 0;
+    return OnFramer.sendMessage(
+      "SetIgnoreMouseEvents",
+      `${ignore ? 1 : 0},${forward}`
+    );
+  },
 };

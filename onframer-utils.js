@@ -21,7 +21,7 @@ let ofScreens = {
     mappedMonitor: [],
     previousScale: null,
     onGrid: async (nScreen, col, row, adapteSize, nCols = undefined, nRows = undefined) => {
-        let _this = infoMonitors;
+        let _this = ofScreens;
 
         nScreen = nScreen - 1;
 
@@ -31,7 +31,7 @@ let ofScreens = {
         if (Number.isInteger(nCols) && Number.isInteger(nRows))
             await _this.init(nCols, nRows);
 
-        if (nScreen < 0 || nScreen > infoMonitors.infoScreens.length || col < 0 || row < 0 || col > _this.nCols || row > _this.nRows)
+        if (nScreen < 0 || nScreen > ofScreens.infoScreens.length || col < 0 || row < 0 || col > _this.nCols || row > _this.nRows)
             throw new Error("Invalid Paramenter");
 
 
@@ -48,30 +48,30 @@ let ofScreens = {
             height: adapteSize ? parseInt(cell.height) : parseInt(window.innerHeight)
         };
 
-        let scale = infoMonitors.infoScreens[nScreen]["monitorScale"] || null;
+        let scale = ofScreens.infoScreens[nScreen]["monitorScale"] || null;
         
         await OnFramer.sendMessage("Position", `${left},${top},${width},${height}`);
         //TODO: Remove this if...
         // When setting position from previous screen.scale > 1 to screen.scale = 1
         // the sizes are not displayed correctly
-        if (infoMonitors.previousScale > scale ){
+        if (ofScreens.previousScale > scale ){
             await OnFramer.sendMessage("Position", `${left},${top},${width},${height}`);
         }
 
         console.log(`Setting position for screen ${nScreen}: left=${left}, top=${top}, width=${width}, height=${height}`);
         if (!scale) {
             scale = window.devicePixelRatio;
-            infoMonitors.infoScreens[nScreen]["monitorScale"] = scale;
-            infoMonitors.infoScreens[nScreen]["screen"] = window.screen;
+            ofScreens.infoScreens[nScreen]["monitorScale"] = scale;
+            ofScreens.infoScreens[nScreen]["screen"] = window.screen;
         }
 
-        infoMonitors.previousScale = scale;
-        const bounds = infoMonitors.position.getCellBounds(scale, nScreen, col, row, adapteSize);
-        await infoMonitors.position.sendAdjusted(bounds, nScreen);
+        ofScreens.previousScale = scale;
+        const bounds = ofScreens.position.getCellBounds(scale, nScreen, col, row, adapteSize);
+        await ofScreens.position.sendAdjusted(bounds, nScreen);
 
     },
     init: async (nCols, nRows) => {
-        let _this = infoMonitors;
+        let _this = ofScreens;
         _this.setup.initTable(nCols, nRows);
         if (!_this.infoMonitorsStarted) {
             _this.infoMonitorsStarted = true;
@@ -84,7 +84,7 @@ let ofScreens = {
     },
     onFramer: {
         getInfo: () => {
-            let _this = infoMonitors;
+            let _this = ofScreens;
 
             return new Promise((resolve, reject) => {
                 OnFramer.sendMessage("MonitorInfo")
@@ -108,11 +108,11 @@ let ofScreens = {
             if (nCols > 100) nCols = 100;
             if (nRows > 100) nRows = 100;
 
-            infoMonitors.nCols = nCols;
-            infoMonitors.nRows = nRows;
+            ofScreens.nCols = nCols;
+            ofScreens.nRows = nRows;
         },
         init: () => {
-            let _this = infoMonitors;
+            let _this = ofScreens;
             _this.setup.getTopLeftBottomRight();
             _this.setup.getSizeMaxArea();
             _this.setup.getMappedPoints();
@@ -120,7 +120,7 @@ let ofScreens = {
             _this.setup.makeGrid();
         },
         getTopLeftBottomRight: () => {
-            let _this = infoMonitors;
+            let _this = ofScreens;
             _this.infoScreens.forEach(function (monitor) {
                 let top = parseInt(monitor["rcWork.top"]);
                 let left = parseInt(monitor["rcWork.left"]);
@@ -137,7 +137,7 @@ let ofScreens = {
             });
         },
         getSizeMaxArea: (widthArea = 500) => {
-            let _this = infoMonitors;
+            let _this = ofScreens;
             _this.widthAvailable = widthArea;
 
             let width = _this.maxRight - _this.minLeft;
@@ -148,7 +148,7 @@ let ofScreens = {
             _this.heightAvailable = (height + 100) * _this.ratio;
         },
         getMappedPoints: () => {
-            let _this = infoMonitors;
+            let _this = ofScreens;
             _this.mappedPoints = [];
             _this.infoScreens.forEach(function (monitor, index) {
                 let top = parseInt(monitor["rcWork.top"]);
@@ -171,7 +171,7 @@ let ofScreens = {
             });
         },
         drawScreens: () => {
-            let _this = infoMonitors;
+            let _this = ofScreens;
             _this.mappedMonitor = [];
 
             _this.mappedPoints.forEach((point, index) => {
@@ -202,7 +202,7 @@ let ofScreens = {
             });
         },
         makeGrid: () => {
-            let _this = infoMonitors;
+            let _this = ofScreens;
             _this.mappedMonitor.forEach(function (monitor, index) {
                 let width = _this.mappedPoints[index].width;
                 let height = _this.mappedPoints[index].height;
@@ -286,12 +286,12 @@ let ofScreens = {
         },
         fromUrl: function () {
             // Example usage
-            const dataParam = infoMonitors.url.getQueryParam("ofpos");
+            const dataParam = ofScreens.url.getQueryParam("ofpos");
             if (!dataParam) {
                 return;
             }
 
-            const positionInfo = infoMonitors.url.parseDataParam(dataParam);
+            const positionInfo = ofScreens.url.parseDataParam(dataParam);
             if (!positionInfo) {
                 console.error("Data parameter is not in the correct format");
                 return;
@@ -305,36 +305,36 @@ let ofScreens = {
             console.log("Col:", positionInfo.col);
             console.log("Row:", positionInfo.row);
             console.log("AdapteSize:", positionInfo.adapteSize);
-            infoMonitors.onGrid(positionInfo.nscreen, positionInfo.col, positionInfo.row, positionInfo.adapteSize, positionInfo.cols, positionInfo.rows);
+            ofScreens.onGrid(positionInfo.nscreen, positionInfo.col, positionInfo.row, positionInfo.adapteSize, positionInfo.cols, positionInfo.rows);
         }
     },
     position: {
         mapMonitorScales: async (adapteSize = true) => {
 
-            const originalCols = infoMonitors.nCols;
-            const originalRows = infoMonitors.nRows;
+            const originalCols = ofScreens.nCols;
+            const originalRows = ofScreens.nRows;
 
             const tempCols = 3;
             const tempRows = 3;
-            await infoMonitors.init(tempCols, tempRows);
-            await infoMonitors.onFramer.getInfo();
+            await ofScreens.init(tempCols, tempRows);
+            await ofScreens.onFramer.getInfo();
 
-            const nScreens = infoMonitors.infoScreens.length;
+            const nScreens = ofScreens.infoScreens.length;
 
             for (let nscreen = 1; nscreen <= nScreens; nscreen++) {
                 const row = 2
                 const col = 2
 
-                await infoMonitors.onGrid(nscreen, col, row, adapteSize, tempCols, tempRows);
-                infoMonitors.infoScreens[nscreen - 1]["monitorScale"] = window.devicePixelRatio;
-                infoMonitors.infoScreens[nscreen - 1]["screen"] = window.screen;
+                await ofScreens.onGrid(nscreen, col, row, adapteSize, tempCols, tempRows);
+                ofScreens.infoScreens[nscreen - 1]["monitorScale"] = window.devicePixelRatio;
+                ofScreens.infoScreens[nscreen - 1]["screen"] = window.screen;
             }
 
-            await infoMonitors.init(originalCols, originalRows);
+            await ofScreens.init(originalCols, originalRows);
 
         },
         getCellBounds: (scale, nscreen, col, row, adapteSize = false) => {
-            let _this= infoMonitors;
+            let _this= ofScreens;
             let leftChanged = null;
             let topChanged = null;
             let widthChanged = null;
@@ -344,7 +344,7 @@ let ofScreens = {
                 return { leftChanged, topChanged, widthChanged, heightChanged };
             }
 
-            let infoDesiredMonitor = infoMonitors.infoScreens[nscreen];
+            let infoDesiredMonitor = ofScreens.infoScreens[nscreen];
             console.log(infoDesiredMonitor);
 
             // Define the monitor rectangle (logical pixels)
