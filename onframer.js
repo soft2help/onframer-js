@@ -97,4 +97,52 @@ let OnFramer = {
       `${ignore ? 1 : 0},${forward}`
     );
   },
+
+  // --- Tray API + minimize-to-tray (via OnframerManager bridge, ws://localhost:9099) ---
+  // Requires OnframerManager to be running (it owns the system tray).
+  _trayWs: null,
+  _trayCbs: {},
+  _trayClickCb: null,
+  _trayConnect: function () {
+    if (OnFramer._trayWs && OnFramer._trayWs.readyState <= 1) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      try {
+        var ws = new WebSocket("ws://localhost:9099");
+        OnFramer._trayWs = ws;
+        ws.onopen = () => resolve();
+        ws.onerror = (e) => reject(e);
+        ws.onmessage = (ev) => {
+          try {
+            var m = JSON.parse(ev.data);
+            if (m.event === "tray.click" && OnFramer._trayClickCb) OnFramer._trayClickCb();
+            if (m.event === "menu" && OnFramer._trayCbs[m.id]) OnFramer._trayCbs[m.id]();
+          } catch (_) {}
+        };
+      } catch (e) { reject(e); }
+    });
+  },
+  // tray({ tooltip, menu:[{id,label,onClick}], onClick }) — set the app's tray icon + menu.
+  tray: function (opts) {
+    opts = opts || {};
+    return OnFramer._trayConnect().then(() => {
+      OnFramer._trayCbs = {};
+      var menu = (opts.menu || []).map((it) => {
+        if (it.onClick) OnFramer._trayCbs[it.id] = it.onClick;
+        return { id: it.id, label: it.label };
+      });
+      OnFramer._trayClickCb = opts.onClick || null;
+      OnFramer._trayWs.send(JSON.stringify({ cmd: "tray.set", tooltip: opts.tooltip || "", menu: menu }));
+    });
+  },
+  removeTray: function () {
+    if (OnFramer._trayWs && OnFramer._trayWs.readyState === 1)
+      OnFramer._trayWs.send(JSON.stringify({ cmd: "tray.remove" }));
+  },
+  // Minimize-to-tray: hide the window (a tray icon brings it back).
+  minimizeToTray: function () {
+    return OnFramer._trayConnect().then(() => OnFramer._trayWs.send(JSON.stringify({ cmd: "hide" })));
+  },
+  restoreFromTray: function () {
+    return OnFramer._trayConnect().then(() => OnFramer._trayWs.send(JSON.stringify({ cmd: "show" })));
+  },
 };
