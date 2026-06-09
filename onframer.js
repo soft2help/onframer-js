@@ -116,6 +116,7 @@ let OnFramer = {
             var m = JSON.parse(ev.data);
             if (m.event === "tray.click" && OnFramer._trayClickCb) OnFramer._trayClickCb();
             if (m.event === "menu" && OnFramer._trayCbs[m.id]) OnFramer._trayCbs[m.id]();
+            if (m.event === "mousemove" && OnFramer._ctaSelector) OnFramer._ctaHandle(m.x, m.y);
           } catch (_) {}
         };
       } catch (e) { reject(e); }
@@ -144,5 +145,39 @@ let OnFramer = {
   },
   restoreFromTray: function () {
     return OnFramer._trayConnect().then(() => OnFramer._trayWs.send(JSON.stringify({ cmd: "show" })));
+  },
+
+  // --- Per-pixel click-through (auto) ---
+  // Make a transparent overlay interactive ONLY over elements matching `selector`;
+  // clicks elsewhere pass through to the window behind. Uses the Manager's low-level
+  // mouse hook (forwarded moves) to hit-test the DOM and toggle click-through.
+  // Needs OnframerManager + launch with --widget.
+  _ctaSelector: null,
+  _ctaState: null,
+  _ctaHandle: function (screenX, screenY) {
+    // screen -> client coords using the window's screen origin
+    var cx = screenX - (window.screenX || 0);
+    var cy = screenY - (window.screenY || 0);
+    var el = document.elementFromPoint(cx, cy);
+    var interactive = !!(el && el.closest(OnFramer._ctaSelector));
+    var ignore = !interactive; // pass through when NOT over an interactive element
+    if (ignore !== OnFramer._ctaState) {
+      OnFramer._ctaState = ignore;
+      OnFramer.setIgnoreMouseEvents(ignore);
+    }
+  },
+  clickThroughAuto: function (selector) {
+    OnFramer._ctaSelector = selector || ".ct-interactive";
+    OnFramer._ctaState = null;
+    return OnFramer._trayConnect().then(() => {
+      OnFramer._trayWs.send(JSON.stringify({ cmd: "hook.start" }));
+      return OnFramer.setIgnoreMouseEvents(true); // start passing through
+    });
+  },
+  stopClickThroughAuto: function () {
+    OnFramer._ctaSelector = null;
+    if (OnFramer._trayWs && OnFramer._trayWs.readyState === 1)
+      OnFramer._trayWs.send(JSON.stringify({ cmd: "hook.stop" }));
+    return OnFramer.setIgnoreMouseEvents(false);
   },
 };
