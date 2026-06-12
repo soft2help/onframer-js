@@ -2,7 +2,7 @@
  * Project Name: OnFramer
  * Description: This file serves as a bridge between JavaScript and Onframer (CEF), enabling control over window behavior.
  *
- * @version 1.0.5-beta
+ * @version 1.0.6-beta
  * @date 2026-06-12
  * @license MIT
  * @author Luis Fernandes
@@ -15,6 +15,7 @@
  * - v1.0.4-beta: clickThroughMask() per-PIXEL click-through (border-radius + CSS clip-path).
  * - v1.0.5-beta: clickThroughMask de-dups identical pushes (no re-arm flicker on the
  *                resize/scroll/1s tick when the layout hasn't changed).
+ * - v1.0.6-beta: clickThroughRegions de-dups identical pushes too (same anti-flicker).
  *
  * Usage:
  * Place it in your web project in javascript files section.
@@ -186,10 +187,18 @@ let OnFramer = {
         Math.round((b.width / vw) * 10000) + "," + Math.round((b.height / vh) * 10000)
       );
     });
-    OnFramer.sendMessage("SetClickThroughRegions", segs.join("|"));
+    var payload = segs.join("|");
+    // Skip the send when unchanged: the native side re-arms (briefly makes the whole window
+    // click-through until the next cursor move) on every SetClickThroughRegions, so re-sending
+    // identical rects on the resize/scroll/1s tick would flicker.
+    if (payload === OnFramer._ctrLast) return;
+    OnFramer._ctrLast = payload;
+    OnFramer.sendMessage("SetClickThroughRegions", payload);
   },
+  _ctrLast: null,
   clickThroughRegions: function (selector) {
     OnFramer._ctrSelector = selector || ".ct-interactive";
+    OnFramer._ctrLast = null; // force the first push to send
     OnFramer._pushClickThroughRegions();
     if (!OnFramer._ctrTimer) {
       window.addEventListener("resize", OnFramer._pushClickThroughRegions);
@@ -201,6 +210,7 @@ let OnFramer = {
   },
   stopClickThroughRegions: function () {
     OnFramer._ctrSelector = null;
+    OnFramer._ctrLast = null;
     if (OnFramer._ctrTimer) {
       clearInterval(OnFramer._ctrTimer);
       OnFramer._ctrTimer = null;
