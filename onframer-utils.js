@@ -41,34 +41,17 @@ let ofScreens = {
 
         let cell = monitorMatrix.find(c => c.row === row - 1 && c.col === col - 1);
 
-        let { left, top, width, height } = {
-            left: cell.left,
-            top: cell.top,
-            width: adapteSize ? parseInt(cell.width) : parseInt(window.innerWidth),
-            height: adapteSize ? parseInt(cell.height) : parseInt(window.innerHeight)
-        };
+        let left = cell.left;
+        let top = cell.top;
+        let width = adapteSize ? parseInt(cell.width) : parseInt(window.innerWidth);
+        let height = adapteSize ? parseInt(cell.height) : parseInt(window.innerHeight);
 
-        let scale = ofScreens.infoScreens[nScreen]["monitorScale"] || null;
-        
+        // Grid cells are in physical (device) pixels — the same units as
+        // MonitorInfo and the native Position handler (SetWindowPos), which does
+        // not clamp to a display. A single send moves + resizes the window to the
+        // target cell on any monitor.
+        console.log(`onGrid screen ${nScreen}: ${left},${top} ${width}x${height}`);
         await OnFramer.sendMessage("Position", `${left},${top},${width},${height}`);
-        //TODO: Remove this if...
-        // When setting position from previous screen.scale > 1 to screen.scale = 1
-        // the sizes are not displayed correctly
-        if (ofScreens.previousScale > scale ){
-            await OnFramer.sendMessage("Position", `${left},${top},${width},${height}`);
-        }
-
-        console.log(`Setting position for screen ${nScreen}: left=${left}, top=${top}, width=${width}, height=${height}`);
-        if (!scale) {
-            scale = window.devicePixelRatio;
-            ofScreens.infoScreens[nScreen]["monitorScale"] = scale;
-            ofScreens.infoScreens[nScreen]["screen"] = window.screen;
-        }
-
-        ofScreens.previousScale = scale;
-        const bounds = ofScreens.position.getCellBounds(scale, nScreen, col, row, adapteSize);
-        await ofScreens.position.sendAdjusted(bounds, nScreen);
-
     },
     init: async (nCols, nRows) => {
         let _this = ofScreens;
@@ -203,6 +186,7 @@ let ofScreens = {
         },
         makeGrid: () => {
             let _this = ofScreens;
+            _this.matrix = [];
             _this.mappedMonitor.forEach(function (monitor, index) {
                 let width = _this.mappedPoints[index].width;
                 let height = _this.mappedPoints[index].height;
