@@ -21,7 +21,7 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 `try/catch` so the page still works when opened in a normal browser.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.4-beta/onframer.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.6-beta/onframer.js"></script>
 ```
 
 | Method | Does |
@@ -111,7 +111,7 @@ commercial VMP-signed license (a contractual gate, not a flag).
 ## Rules for the assistant
 
 When building an OnFramer app:
-1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.4-beta` (has `clickThroughMask` + all click-through APIs).
+1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.6-beta` (has `clickThroughMask` + all click-through APIs).
 2. Wrap all `OnFramer.*` calls in `try/catch`; the page must not break in a browser.
 3. Add a favicon `<link>` (it becomes the window icon).
 4. For see-through widgets, set transparent CSS background and tell the user to run with `--widget`.
