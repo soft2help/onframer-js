@@ -21,7 +21,7 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 `try/catch` so the page still works when opened in a normal browser.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.1-beta/onframer.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.4-beta/onframer.js"></script>
 ```
 
 | Method | Does |
@@ -33,7 +33,9 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 | `fullscreen()` / `exitFullscreen()` | Fullscreen (transparency preserved in `--widget`) |
 | `alwaysOnTop()` / `notAlwaysOnTop()` | Keep above other windows |
 | `mute()` / `unmute()` | Window audio (note: `unmute`, not `unMute`) |
-| `setIgnoreMouseEvents(ignore, {forward})` | **Click-through** — when `ignore` is true, clicks pass to the window behind (needs `@v1.0.1-beta`) |
+| `setIgnoreMouseEvents(ignore, {forward})` | **Whole-window click-through** — when `ignore` is true, clicks pass to the window behind |
+| `clickThroughRegions(selector)` / `stopClickThroughRegions()` | **Per-region click-through** — only matching elements' bounding boxes catch clicks; transparent areas pass through automatically |
+| `clickThroughMask(selector, {cell})` / `stopClickThroughMask()` | **Per-pixel click-through** — rasterises each widget's `border-radius` + CSS `clip-path` shape, so rounded/circular widgets pass clicks through their transparent corners (build 148+) |
 
 ```javascript
 // Place a half-width panel on the active monitor's work area
@@ -54,16 +56,18 @@ onframer.exe --widget --dev --url=https://your.app/
 - `--widget` frameless **+ transparent** (the see-through widget mode)
 - `?ofpos=3x2_1-2-1-1` (URL query) pre-position on a monitor grid cell
 - `--proxy-server=localhost:9000` route through the Proxy plugin (HTML injection)
-- `--widevine-cdm-path=<dir>` Widevine DRM (BYO CDM)
+- `--widevine-cdm-path=<dir>` override the bundled Widevine CDM (DRM works without it)
 - `--user-data-dir=<path>` / `--cache-path=<path>` profile + cache
 
 ## Key patterns
 
 - **Transparency**: launch with `--widget` AND set `html, body { background: transparent }`
   (or `rgba(…, 0)`). No API call. Transparency is preserved during fullscreen.
-- **Click-through overlay**: `setIgnoreMouseEvents(true, {forward:true})` makes the whole
-  window pass clicks to the desktop/app behind; `false` makes it interactive again.
-  (Per-pixel auto mode — opaque parts interactive, transparent parts pass — is roadmap.)
+- **Click-through overlay**: three levels. `setIgnoreMouseEvents(true)` = whole window passes
+  clicks. `clickThroughRegions(".ct-interactive")` = only the marked widgets' rectangles catch
+  clicks, the transparent rest passes — automatic, no toggling. `clickThroughMask(".ct-interactive")`
+  = **per-pixel**: rounded/circular/clip-path widgets pass clicks through their transparent corners
+  too. Mark interactive elements with `class="ct-interactive"`.
 - **Always-on-top widget**: `--widget` + `OnFramer.alwaysOnTop()` for HUDs/tickers.
 - **Window icon = the page favicon**, NOT the exe. Add `<link rel="icon" href="/favicon.ico">`.
 - **Multi-monitor**: read geometry from `monitorInfo()`; coords are pixels on the virtual
@@ -90,8 +94,11 @@ code.)
 
 ## DRM
 
-Widevine works via **BYO-CDM**: ship a matching `widevinecdm.dll` and launch with
-`--widevine-cdm-path`. Without it, EME content fails — show a clear message.
+Widevine works **out of the box** — the plug-and-play bundles the CDM, so Widevine/EME content
+decrypts and plays like in Chrome. Serve your EME page over `https://` or `http://localhost`
+(EME is blocked on `file://` — opaque origin). To pin/replace the CDM, swap the `WidevineCdm`
+folder next to `onframer.exe` or launch with `--widevine-cdm-path`. Netflix/Disney+ also need a
+commercial VMP-signed license (a contractual gate, not a flag).
 
 ## Gotchas (read these)
 
@@ -104,7 +111,7 @@ Widevine works via **BYO-CDM**: ship a matching `widevinecdm.dll` and launch wit
 ## Rules for the assistant
 
 When building an OnFramer app:
-1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.1-beta` (has `setIgnoreMouseEvents`).
+1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.4-beta` (has `clickThroughMask` + all click-through APIs).
 2. Wrap all `OnFramer.*` calls in `try/catch`; the page must not break in a browser.
 3. Add a favicon `<link>` (it becomes the window icon).
 4. For see-through widgets, set transparent CSS background and tell the user to run with `--widget`.
