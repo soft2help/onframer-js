@@ -2,7 +2,7 @@
  * Project Name: OnFramer
  * Description: This file serves as a bridge between JavaScript and Onframer (CEF), enabling control over window behavior.
  *
- * @version 1.0.4-beta
+ * @version 1.0.5-beta
  * @date 2026-06-12
  * @license MIT
  * @author Luis Fernandes
@@ -12,10 +12,9 @@
  * - v1.0.1-beta: setIgnoreMouseEvents (whole-window click-through).
  * - v1.0.2-beta: tray() / minimizeToTray() (OnframerManager tray API).
  * - v1.0.3-beta: clickThroughRegions() / clickThroughAuto() (per-region click-through).
- * - v1.0.4-beta: clickThroughMask() per-PIXEL click-through (rasterises border-radius +
- *                CSS clip-path shapes, so rounded/circular widgets pass clicks through
- *                their transparent corners). Needs an OnFramer build with per-pixel
- *                support (148+).
+ * - v1.0.4-beta: clickThroughMask() per-PIXEL click-through (border-radius + CSS clip-path).
+ * - v1.0.5-beta: clickThroughMask de-dups identical pushes (no re-arm flicker on the
+ *                resize/scroll/1s tick when the layout hasn't changed).
  *
  * Usage:
  * Place it in your web project in javascript files section.
@@ -345,11 +344,19 @@ let OnFramer = {
     for (var i = 0; i < bits.length; i++) if (bits[i]) bytes[i >> 3] |= (0x80 >> (i & 7));
     var bin = "";
     for (var j = 0; j < bytes.length; j++) bin += String.fromCharCode(bytes[j]);
-    OnFramer.sendMessage("SetClickThroughMask", cols + "," + rows + ";" + btoa(bin));
+    var payload = cols + "," + rows + ";" + btoa(bin);
+    // Skip the send when the mask is unchanged: the native side re-arms (briefly makes the
+    // whole window click-through until the next cursor move) on every SetClickThroughMask, so
+    // re-sending an identical mask on the resize/scroll/1s-interval tick would flicker.
+    if (payload === OnFramer._ctmLast) return;
+    OnFramer._ctmLast = payload;
+    OnFramer.sendMessage("SetClickThroughMask", payload);
   },
+  _ctmLast: null,
   clickThroughMask: function (selector, opts) {
     OnFramer._ctmSelector = selector || ".ct-interactive";
     OnFramer._ctmCell = (opts && opts.cell) || 6;
+    OnFramer._ctmLast = null; // force the first push to send
     OnFramer._pushClickThroughMask();
     if (!OnFramer._ctmTimer) {
       window.addEventListener("resize", OnFramer._pushClickThroughMask);
@@ -360,6 +367,7 @@ let OnFramer = {
   },
   stopClickThroughMask: function () {
     OnFramer._ctmSelector = null;
+    OnFramer._ctmLast = null;
     if (OnFramer._ctmTimer) {
       clearInterval(OnFramer._ctmTimer);
       OnFramer._ctmTimer = null;
