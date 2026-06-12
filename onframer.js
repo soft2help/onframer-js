@@ -2,7 +2,7 @@
  * Project Name: OnFramer
  * Description: This file serves as a bridge between JavaScript and Onframer (CEF), enabling control over window behavior.
  *
- * @version 1.0.6-beta
+ * @version 1.0.7-beta
  * @date 2026-06-12
  * @license MIT
  * @author Luis Fernandes
@@ -16,6 +16,8 @@
  * - v1.0.5-beta: clickThroughMask de-dups identical pushes (no re-arm flicker on the
  *                resize/scroll/1s tick when the layout hasn't changed).
  * - v1.0.6-beta: clickThroughRegions de-dups identical pushes too (same anti-flicker).
+ * - v1.0.7-beta: clickThroughMask Tier 2 — opts.mode "canvas" rasterises the real alpha of
+ *                img/canvas widgets (PNG cut-outs) into the mask; falls back to geometry.
  *
  * Usage:
  * Place it in your web project in javascript files section.
@@ -331,9 +333,16 @@ let OnFramer = {
     var vw = window.innerWidth || 1, vh = window.innerHeight || 1;
     var cols = Math.ceil(vw / cell), rows = Math.ceil(vh / cell);
     var bits = new Uint8Array(cols * rows);
+    var canvasMode = OnFramer._ctmMode === "canvas";
     document.querySelectorAll(OnFramer._ctmSelector).forEach(function (el) {
       var b = el.getBoundingClientRect();
       if (b.width < 1 || b.height < 1) return;
+      // Tier 2 (opt-in): rasterise the real alpha of image/canvas widgets (e.g. a PNG cut-out
+      // shape) so only its opaque pixels catch clicks. Falls back to geometry if there's no
+      // drawable source or the pixels are tainted (cross-origin).
+      if (canvasMode && OnFramer._ctmCanvasFill(el, b, cell, cols, rows, bits)) {
+        return;
+      }
       var rad = OnFramer._ctmRadius(el, b.width, b.height);
       var clip = OnFramer._ctmClip(el, b.width, b.height); // Tier 2: arbitrary CSS shapes
       var c0 = Math.floor(b.left / cell), c1 = Math.ceil(b.right / cell);
@@ -363,9 +372,45 @@ let OnFramer = {
     OnFramer.sendMessage("SetClickThroughMask", payload);
   },
   _ctmLast: null,
+  _ctmMode: "geometry",
+  _ctmCv: null,
+  // Tier 2 canvas rasteriser: draw an image/canvas widget's real pixels into the mask grid and
+  // keep the cells whose alpha is above threshold. Returns true if it filled (so the caller
+  // skips geometry), false to fall back. Cross-origin images taint the canvas -> caught -> false.
+  _ctmCanvasFill: function (el, b, cell, cols, rows, bits) {
+    var tag = el.tagName;
+    var src = (tag === "IMG" || tag === "CANVAS") ? el : el.querySelector("img,canvas");
+    if (!src) return false;
+    if (src.tagName === "IMG" && (!src.complete || !src.naturalWidth)) return false;
+    var c0 = Math.max(0, Math.floor(b.left / cell)), c1 = Math.min(cols, Math.ceil(b.right / cell));
+    var r0 = Math.max(0, Math.floor(b.top / cell)), r1 = Math.min(rows, Math.ceil(b.bottom / cell));
+    var gw = c1 - c0, gh = r1 - r0;
+    if (gw < 1 || gh < 1) return false;
+    var cv = OnFramer._ctmCv || (OnFramer._ctmCv = document.createElement("canvas"));
+    cv.width = gw; cv.height = gh;
+    var ctx = cv.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return false;
+    ctx.clearRect(0, 0, gw, gh);
+    // Map the element's box into the grid cells it covers (1 canvas px = 1 mask cell).
+    var dx = (b.left - c0 * cell) / cell, dy = (b.top - r0 * cell) / cell;
+    var data;
+    try {
+      ctx.drawImage(src, dx, dy, b.width / cell, b.height / cell);
+      data = ctx.getImageData(0, 0, gw, gh).data;
+    } catch (e) {
+      return false; // taint / not drawable -> geometry fallback
+    }
+    for (var y = 0; y < gh; y++) {
+      for (var x = 0; x < gw; x++) {
+        if (data[(y * gw + x) * 4 + 3] > 16) bits[(r0 + y) * cols + (c0 + x)] = 1;
+      }
+    }
+    return true;
+  },
   clickThroughMask: function (selector, opts) {
     OnFramer._ctmSelector = selector || ".ct-interactive";
     OnFramer._ctmCell = (opts && opts.cell) || 6;
+    OnFramer._ctmMode = (opts && opts.mode) === "canvas" ? "canvas" : "geometry";
     OnFramer._ctmLast = null; // force the first push to send
     OnFramer._pushClickThroughMask();
     if (!OnFramer._ctmTimer) {
