@@ -1,5 +1,5 @@
 if (typeof OnFramer === "undefined"){
-    throw new Error ("onframer.js not loaded. Source this file: https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.0-beta/onframer.js");
+    throw new Error ("onframer.js not loaded. Source this file: https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.8-beta/onframer.js");
 }
 
 let ofScreens = {

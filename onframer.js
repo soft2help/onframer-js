@@ -2,8 +2,8 @@
  * Project Name: OnFramer
  * Description: This file serves as a bridge between JavaScript and Onframer (CEF), enabling control over window behavior.
  *
- * @version 1.0.7-beta
- * @date 2026-06-12
+ * @version 1.0.8-beta
+ * @date 2026-11-22
  * @license MIT
  * @author Luis Fernandes
  *
@@ -18,6 +18,11 @@
  * - v1.0.6-beta: clickThroughRegions de-dups identical pushes too (same anti-flicker).
  * - v1.0.7-beta: clickThroughMask Tier 2 — opts.mode "canvas" rasterises the real alpha of
  *                img/canvas widgets (PNG cut-outs) into the mask; falls back to geometry.
+ * - v1.0.8-beta: click-through region/mask refresh skips its 1 s tick while the page is hidden,
+ *                and calls made outside OnFramer no longer log "Uncaught (in promise)" when the
+ *                caller doesn't catch (awaiting callers still get the rejection).
+ *                Also exposed as window.OnFramer (a top-level `let` is not a window property, so
+ *                pages checking `window.OnFramer` saw undefined even inside OnFramer).
  *
  * Usage:
  * Place it in your web project in javascript files section.
@@ -31,13 +36,32 @@ let OnFramer = {
       message += ":" + params;
     }
 
+    // Outside OnFramer (a normal browser) every call rejects. Callers that await/catch still get
+    // the rejection, but it is marked handled so fire-and-forget calls (e.g. a bare
+    // OnFramer.setIgnoreMouseEvents(true)) don't log "Uncaught (in promise)" on every page.
+    if (typeof window === "undefined" || typeof window.cefQuery !== "function") {
+      var na = Promise.reject(
+        "Onframer is not available. Load current page with onframer application. More info in https://onframer.io"
+      );
+      na.catch(function () {});
+      return na;
+    }
+
     return new Promise((resolve, reject) => {
       try {
         window.cefQuery({
           request: message,
           onSuccess: function (response) {
+            // Guard the parse: a non-JSON / malformed response must NOT throw
+            // here (this runs in the native cefQuery callback, outside the
+            // try below — an uncaught throw would leave the Promise pending
+            // forever). Fall back to the raw string instead of hanging.
             if (response !== "") {
-              response = JSON.parse(response);
+              try {
+                response = JSON.parse(response);
+              } catch (e) {
+                /* keep raw string */
+              }
             }
             resolve(response);
           },
@@ -175,7 +199,8 @@ let OnFramer = {
   _ctrSelector: null,
   _ctrTimer: null,
   _pushClickThroughRegions: function () {
-    if (!OnFramer._ctrSelector) return;
+    // Hidden (minimised / tray): nothing to hit-test; visibilitychange pushes as soon as it shows.
+    if (!OnFramer._ctrSelector || document.hidden) return;
     // Send rects as NORMALIZED fractions of the viewport (x/w * 10000). onframer maps
     // the cursor into the same 0..10000 space via its client rect, so the hit-test is
     // exact regardless of DPI / CSS-vs-device-px scaling.
@@ -195,7 +220,8 @@ let OnFramer = {
     // identical rects on the resize/scroll/1s tick would flicker.
     if (payload === OnFramer._ctrLast) return;
     OnFramer._ctrLast = payload;
-    OnFramer.sendMessage("SetClickThroughRegions", payload);
+    // Internal push: nobody awaits it, so swallow the rejection (no OnFramer = normal browser).
+    OnFramer.sendMessage("SetClickThroughRegions", payload).catch(function () {});
   },
   _ctrLast: null,
   clickThroughRegions: function (selector) {
@@ -205,6 +231,7 @@ let OnFramer = {
     if (!OnFramer._ctrTimer) {
       window.addEventListener("resize", OnFramer._pushClickThroughRegions);
       window.addEventListener("scroll", OnFramer._pushClickThroughRegions, true);
+      document.addEventListener("visibilitychange", OnFramer._pushClickThroughRegions);
       // periodic refresh catches layout/DOM changes that don't fire resize/scroll
       OnFramer._ctrTimer = setInterval(OnFramer._pushClickThroughRegions, 1000);
     }
@@ -218,6 +245,7 @@ let OnFramer = {
       OnFramer._ctrTimer = null;
       window.removeEventListener("resize", OnFramer._pushClickThroughRegions);
       window.removeEventListener("scroll", OnFramer._pushClickThroughRegions, true);
+      document.removeEventListener("visibilitychange", OnFramer._pushClickThroughRegions);
     }
     return OnFramer.sendMessage("SetClickThroughRegions", ""); // disable
   },
@@ -328,7 +356,7 @@ let OnFramer = {
     return true;
   },
   _pushClickThroughMask: function () {
-    if (!OnFramer._ctmSelector) return;
+    if (!OnFramer._ctmSelector || document.hidden) return;
     var cell = OnFramer._ctmCell || 6;
     var vw = window.innerWidth || 1, vh = window.innerHeight || 1;
     var cols = Math.ceil(vw / cell), rows = Math.ceil(vh / cell);
@@ -369,7 +397,7 @@ let OnFramer = {
     // re-sending an identical mask on the resize/scroll/1s-interval tick would flicker.
     if (payload === OnFramer._ctmLast) return;
     OnFramer._ctmLast = payload;
-    OnFramer.sendMessage("SetClickThroughMask", payload);
+    OnFramer.sendMessage("SetClickThroughMask", payload).catch(function () {});
   },
   _ctmLast: null,
   _ctmMode: "geometry",
@@ -416,6 +444,8 @@ let OnFramer = {
     if (!OnFramer._ctmTimer) {
       window.addEventListener("resize", OnFramer._pushClickThroughMask);
       window.addEventListener("scroll", OnFramer._pushClickThroughMask, true);
+      // Set up while hidden: push the moment the page shows, not on the next 1 s tick.
+      document.addEventListener("visibilitychange", OnFramer._pushClickThroughMask);
       OnFramer._ctmTimer = setInterval(OnFramer._pushClickThroughMask, 1000);
     }
     return Promise.resolve();
@@ -428,7 +458,11 @@ let OnFramer = {
       OnFramer._ctmTimer = null;
       window.removeEventListener("resize", OnFramer._pushClickThroughMask);
       window.removeEventListener("scroll", OnFramer._pushClickThroughMask, true);
+      document.removeEventListener("visibilitychange", OnFramer._pushClickThroughMask);
     }
     return OnFramer.sendMessage("SetClickThroughMask", "");
   },
 };
+
+// The docs and many widgets use window.OnFramer; `let` alone does not create it.
+if (typeof window !== "undefined") window.OnFramer = OnFramer;
