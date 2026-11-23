@@ -2,8 +2,8 @@
  * Project Name: OnFramer
  * Description: This file serves as a bridge between JavaScript and Onframer (CEF), enabling control over window behavior.
  *
- * @version 1.0.8-beta
- * @date 2026-11-22
+ * @version 1.0.9-beta
+ * @date 2026-11-23
  * @license MIT
  * @author Luis Fernandes
  *
@@ -23,6 +23,9 @@
  *                caller doesn't catch (awaiting callers still get the rejection).
  *                Also exposed as window.OnFramer (a top-level `let` is not a window property, so
  *                pages checking `window.OnFramer` saw undefined even inside OnFramer).
+ * - v1.0.9-beta: OnFramer.storage — inside OnFramer, a widget page (/standalone/<Name>/) keeps a copy
+ *                of the localStorage keys it writes in the user folder (desktopBridge storageSave) and
+ *                gets them back on a fresh Chromium profile (one reload). get/set/remove/flush/ready.
  *
  * Usage:
  * Place it in your web project in javascript files section.
@@ -466,3 +469,207 @@ let OnFramer = {
 
 // The docs and many widgets use window.OnFramer; `let` alone does not create it.
 if (typeof window !== "undefined") window.OnFramer = OnFramer;
+
+// --- Widget data that survives a new Chromium profile (OnFramer.storage) ---
+// Widgets keep their options in localStorage, which lives in the Chromium profile. When the profile
+// changes (shared engine on/off, a new cache folder, a reinstall) the widget would start empty. Inside
+// OnFramer, on a widget page (/standalone/<Name>/), this keeps a copy of the keys THIS widget writes in
+// the user folder through the desktopBridge plugin (storageSave -> <UserRoot>\widgets\<Name>\storage.json)
+// and puts them back on a fresh profile (storageLoad), reloading the page once so the widget reads them.
+// Existing widgets need no change: localStorage.setItem/removeItem/clear are watched. All widgets on
+// localhost:8383 share one origin, so only keys this widget wrote (or restored) are copied.
+// No polling: one save at most every SAVE_MS after a change, and a last one when the page goes away.
+// Without the plugin, or outside OnFramer, everything stays plain localStorage.
+(function () {
+  var NAME_RE = /^\/standalone\/([A-Za-z0-9_-]{1,64})(?:\/|$)/;
+  var PREFIX = "__onframer.";
+  var BRIDGE_URL = "ws://127.0.0.1:9093";
+  var SAVE_MS = 1500;
+
+  function widgetName(pathname) {
+    var m = NAME_RE.exec(String(pathname || ""));
+    return m ? m[1] : null;
+  }
+
+  // backup = {savedAt, data} from storageLoad; get(key) reads this profile's localStorage; seenAt = the
+  // backup savedAt this profile last matched (0 = never, e.g. a fresh profile or after clear()).
+  // A key missing here always comes back. A key with another value comes back only when the backup is
+  // newer than what this profile has seen (a profile that sat unused while another one was in use).
+  function planRestore(backup, get, seenAt) {
+    var set = {}, data = (backup && backup.data) || {}, newer = ((backup && backup.savedAt) || 0) > (seenAt || 0);
+    Object.keys(data).forEach(function (k) {
+      if (k.indexOf(PREFIX) === 0 || typeof data[k] !== "string") return;
+      var v = get(k);
+      if (v === null || (newer && v !== data[k])) set[k] = data[k];
+    });
+    return set;
+  }
+
+  // { key: value } for the tracked keys that still exist.
+  function snapshot(keys, get) {
+    var out = {};
+    Object.keys(keys).forEach(function (k) { var v = get(k); if (v !== null) out[k] = v; });
+    return out;
+  }
+
+  var w = typeof window !== "undefined" ? window : null;
+  var name = w && w.location ? widgetName(w.location.pathname) : null;
+  var ls = null;
+  try { ls = w && w.localStorage; } catch (e) { ls = null; }   // blocked storage throws
+  var Proto = w && w.Storage && w.Storage.prototype;
+  var active = !!(name && ls && Proto && typeof w.cefQuery === "function" && typeof w.WebSocket === "function" &&
+    !Proto.__onframerWatched);
+
+  var readyDone, ready = new Promise(function (r) { readyDone = r; });
+  var lsGet = function (k) { try { return ls ? ls.getItem(k) : null; } catch (e) { return null; } };
+
+  var api = {
+    widget: active ? name : null,
+    active: active,
+    ready: ready,   // resolves once the backup is loaded (at once when inactive)
+    get: function (key, fallback) {
+      return ready.then(function () {
+        var v = lsGet(key);
+        if (v === null) return fallback;
+        try { return JSON.parse(v); } catch (e) { return v; }
+      });
+    },
+    set: function (key, value) {
+      try { ls.setItem(key, JSON.stringify(value)); } catch (e) { return Promise.reject(e); }
+      return Promise.resolve();
+    },
+    remove: function (key) { try { ls.removeItem(key); } catch (e) {} return Promise.resolve(); },
+    flush: function () { return Promise.resolve(); },
+    _: { widgetName: widgetName, planRestore: planRestore, snapshot: snapshot },
+  };
+  if (typeof OnFramer !== "undefined") OnFramer.storage = api;
+  if (!active) { readyDone(); return; }
+
+  var META = PREFIX + "storage." + name;    // backup savedAt this profile last matched
+  var GUARD = PREFIX + "restored." + name;  // sessionStorage: the reload already happened once
+  var origSet = Proto.setItem, origRemove = Proto.removeItem, origClear = Proto.clear;
+  var keys = {}, loaded = false, dirty = false, timer = null, reloading = false, guardKeys = {}, lastSent = null;
+
+  function changed() {
+    if (reloading) return;
+    dirty = true;
+    if (loaded && !timer) timer = setTimeout(save, SAVE_MS);
+  }
+  Proto.__onframerWatched = true;
+  var origGet = Proto.getItem;
+  Proto.setItem = function (k, v) {
+    if (this === ls && reloading && guardKeys[k]) return;   // keep the restored value for the reload
+    var mine = this === ls && String(k).indexOf(PREFIX) !== 0;
+    // Widgets often write the same value again on every tick: that is not a change.
+    var same = mine && keys[String(k)] && origGet.call(this, k) === String(v);
+    var r = origSet.apply(this, arguments);
+    if (mine && !same) { keys[String(k)] = 1; changed(); }
+    return r;
+  };
+  Proto.removeItem = function (k) {
+    if (this === ls && reloading && guardKeys[k]) return;
+    var r = origRemove.apply(this, arguments);
+    k = String(k);
+    if (this === ls && k.indexOf(PREFIX) !== 0) { delete keys[k]; changed(); }
+    return r;
+  };
+  Proto.clear = function () {
+    if (this === ls && reloading) return;
+    var r = origClear.apply(this, arguments);
+    if (this === ls) { keys = {}; changed(); }
+    return r;
+  };
+
+  // Small request/reply client for the bridge; one socket, opened on the first call.
+  var ws = null, opening = null, seq = 0, waits = {};
+  function connect() {
+    if (ws && ws.readyState === 1) return Promise.resolve(ws);
+    if (opening) return opening;
+    opening = new Promise(function (resolve, reject) {
+      var s;
+      try { s = new w.WebSocket(BRIDGE_URL); } catch (e) { opening = null; reject(e); return; }
+      s.onopen = function () { ws = s; opening = null; resolve(s); };
+      s.onerror = function () {};
+      s.onmessage = function (ev) {
+        var m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+        var wt = m && waits[m.id];
+        if (!wt) return;
+        delete waits[m.id]; clearTimeout(wt.t);
+        if (m.ok) wt.ok(m.result); else wt.ko(new Error(m.error || "failed"));
+      };
+      s.onclose = function () {
+        if (ws === s) ws = null;
+        if (opening) { opening = null; reject(new Error("desktopBridge not running")); }
+        Object.keys(waits).forEach(function (id) { clearTimeout(waits[id].t); waits[id].ko(new Error("desktopBridge disconnected")); });
+        waits = {};
+      };
+    });
+    return opening;
+  }
+  function request(sock, cmd, args, ms) {
+    return new Promise(function (ok, ko) {
+      var id = "ofstorage-" + (++seq);
+      waits[id] = { ok: ok, ko: ko, t: setTimeout(function () { delete waits[id]; ko(new Error("timeout")); }, ms || 8000) };
+      sock.send(JSON.stringify({ id: id, cmd: cmd, args: args }));
+    });
+  }
+  function call(cmd, args, ms) { return connect().then(function (s) { return request(s, cmd, args, ms); }); }
+
+  function save() {
+    clearTimeout(timer); timer = null;
+    if (!loaded || !dirty || reloading) return Promise.resolve();
+    dirty = false;
+    var data = snapshot(keys, lsGet), text = JSON.stringify(data);
+    if (text === lastSent) return Promise.resolve();
+    return call("storageSave", { widget: name, data: data }).then(function (r) {
+      lastSent = text;
+      try { origSet.call(ls, META, String(r.savedAt)); } catch (e) {}
+    }, function () { dirty = true; });   // plugin down: the next change (or pagehide) tries again
+  }
+  api.flush = save;
+
+  // Page going away: send what is pending without waiting for the answer, then close the socket
+  // (a page kept in the back/forward cache must not hold it). The next load sees the newer backup
+  // with the same values as this profile, so nothing is restored and nothing reloads.
+  function leave() {
+    clearTimeout(timer); timer = null;
+    if (loaded && dirty && !reloading && ws && ws.readyState === 1) {
+      dirty = false;
+      var data = snapshot(keys, lsGet), text = JSON.stringify(data);
+      if (text === lastSent) return;
+      lastSent = text;
+      try { ws.send(JSON.stringify({ id: "ofstorage-last", cmd: "storageSave", args: { widget: name, data: data } })); } catch (e) {}
+    }
+  }
+  if (w.document) w.document.addEventListener("visibilitychange", function () { if (w.document.hidden) leave(); });
+  w.addEventListener("pagehide", function () { leave(); try { ws && ws.close(); } catch (e) {} });
+
+  call("storageLoad", { widget: name }).then(function (backup) {
+    var seenAt = Number(lsGet(META)) || 0;
+    var set = planRestore(backup, lsGet, seenAt);
+    Object.keys((backup && backup.data) || {}).forEach(function (k) { if (k.indexOf(PREFIX) !== 0) keys[k] = 1; });
+    var n = 0;
+    Object.keys(set).forEach(function (k) { try { origSet.call(ls, k, set[k]); n++; } catch (e) {} });
+    if (backup && backup.savedAt) { try { origSet.call(ls, META, String(backup.savedAt)); } catch (e) {} }
+    var ss = null;
+    try { ss = w.sessionStorage; } catch (e) {}
+    var already = false;
+    try { already = !!(ss && ss.getItem(GUARD)); if (ss) ss.removeItem(GUARD); } catch (e) {}
+    if (n > 0 && !already && ss) {
+      // The widget already read the empty values: reload once so it starts with its data. Until the
+      // reload, writes to the restored keys are ignored (a beforeunload handler saving defaults).
+      try { ss.setItem(GUARD, "1"); } catch (e) {}
+      reloading = true;
+      guardKeys = set;
+      w.location.reload();
+      return;
+    }
+    loaded = true;
+    if (dirty) timer = setTimeout(save, SAVE_MS);
+    readyDone();
+  }, function () {
+    // No plugin: plain localStorage for this page. Nothing is saved, so a backup is never
+    // overwritten by a fresh profile's defaults.
+    readyDone();
+  });
+})();
