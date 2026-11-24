@@ -21,7 +21,7 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 `try/catch` so the page still works when opened in a normal browser.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.9-beta/onframer.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.10-beta/onframer.js"></script>
 ```
 
 | Method | Does |
@@ -41,12 +41,22 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 ```javascript
 // Place a half-width panel on the active monitor's work area
 const [m] = await OnFramer.monitorInfo();
-const w = m.rcWork ?? m;
+// SDK 1.0.10+ adds m.rcWork; older versions only send flat keys ("rcWork.left").
+const w = m.rcWork ?? { left: m["rcWork.left"], top: m["rcWork.top"], right: m["rcWork.right"], bottom: m["rcWork.bottom"] };
 await OnFramer.setPosition(w.left, w.top, (w.right - w.left) / 2, w.bottom - w.top);
 ```
 
 Multi-monitor grid helpers live in `onframer-utils.js` (`ofScreens.onGrid(...)` + the
 `?ofpos=CxR_S-C-R-A` URL — columns×rows _ screen-col-row-adaptSize).
+
+## Run it while you build
+
+```
+onframer-cli dev <folder>
+```
+Serves the folder on `http://127.0.0.1:5178/`, opens it as a `--widget` with DevTools and reloads on
+every save (installed with the Manager). Use it instead of `file://`: a `file://` page has no origin,
+so the plugins (desktopBridge, tray, notifications) refuse it — desktopBridge closes with code 4003.
 
 ## Launch arguments
 
@@ -98,6 +108,12 @@ Windows: Spotify, browsers), idle time, opening links. Use the ready client:
 const db = DesktopBridge.connect();                       // reconnects by itself
 db.onStatus((up) => banner.hidden = up);                  // show "enable the plugin" when down
 await db.call("notify", { title: "Done", body: "Export finished" });
+// The app's own JSON file on disk (user folder, survives updates). Values are strings.
+const { data } = await db.call("storageLoad", { widget: "MyApp" });
+await db.call("storageSave", { widget: "MyApp", data: { tasks: JSON.stringify(tasks) } });
+// Global hotkey (only this page gets it; released when the page closes). Re-register on reconnect.
+await db.hotkeys(["ctrl+alt+t"]);
+db.on("hotkey", ({ combo }) => toggle());
 const { text } = await db.call("clipboard.read");
 await db.call("media", { action: "playpause" });          // next | prev | volup | voldown | mute
 const { seconds } = await db.call("idle");                // since the last input anywhere
@@ -191,16 +207,24 @@ commercial VMP-signed license (a contractual gate, not a flag).
 - Transparency needs `--widget` AND a transparent CSS background.
 - `setPosition` is pixels on the virtual desktop; use `monitorInfo()` for HiDPI/multi-monitor.
 - There is no `close()` API — use `window.close()`. No transparency API — it's `--widget` + CSS.
+- Plugins refuse `file://` pages: serve the folder (`onframer-cli dev <folder>`, or your own plugin).
+- Tray (`OnFramer.tray`, `minimizeToTray`) and desktopBridge need the Manager running.
+- Your own Node plugin: a folder in the user plugins folder (Manager → Configuration → Open plugins
+  folder) with `config.json` (`port`, `onDemand`), `index.js`, `start.bat`, `kill.bat`; full example:
+  https://docs.onframer.io/#complete-app-plugin
 
 ## Rules for the assistant
 
 When building an OnFramer app:
-1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.9-beta` (click-through APIs + `OnFramer.storage`).
+1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.10-beta` (click-through, `OnFramer.storage`, `monitorInfo().rcWork`).
 2. Wrap all `OnFramer.*` calls in `try/catch`; the page must not break in a browser.
 3. Add a favicon `<link>` (it becomes the window icon).
 4. For see-through widgets, set transparent CSS background and tell the user to run with `--widget`.
 5. Prefer real web APIs (WebGPU, WebRTC, File System Access) over native shims when possible.
 6. For hardware/OS access, design a Node plugin that bridges to the page over WebSocket.
+7. Save app data with desktopBridge `storageSave`/`storageLoad` (or `OnFramer.storage` on a gallery
+   widget page), not only localStorage; files the user picks via `showSaveFilePicker`.
+8. Tell the user to run the app with `onframer-cli dev <folder>`, never as `file://`.
 
 ## Links
 

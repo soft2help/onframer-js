@@ -2,7 +2,7 @@
  * Project Name: OnFramer
  * Description: This file serves as a bridge between JavaScript and Onframer (CEF), enabling control over window behavior.
  *
- * @version 1.0.9-beta
+ * @version 1.0.10-beta
  * @date 2026-11-23
  * @license MIT
  * @author Luis Fernandes
@@ -26,6 +26,8 @@
  * - v1.0.9-beta: OnFramer.storage — inside OnFramer, a widget page (/standalone/<Name>/) keeps a copy
  *                of the localStorage keys it writes in the user folder (desktopBridge storageSave) and
  *                gets them back on a fresh Chromium profile (one reload). get/set/remove/flush/ready.
+ * - v1.0.10-beta: monitorInfo() also returns rcMonitor / rcWork objects ({left, top, right, bottom})
+ *                next to the flat "rcWork.left" keys, as the docs always showed.
  *
  * Usage:
  * Place it in your web project in javascript files section.
@@ -89,8 +91,20 @@ let OnFramer = {
       `${left},${top},${width},${height}`
     );
   },
+  // The native side sends flat keys ("rcWork.left"). Each monitor also gets rcMonitor / rcWork
+  // objects ({left, top, right, bottom}), so m.rcWork.left works as documented.
   monitorInfo: () => {
-    return OnFramer.sendMessage("MonitorInfo");
+    return OnFramer.sendMessage("MonitorInfo").then(function (list) {
+      if (!Array.isArray(list)) return list;
+      return list.map(function (m) {
+        if (!m || typeof m !== "object") return m;
+        ["rcMonitor", "rcWork"].forEach(function (r) {
+          if (m[r] && typeof m[r] === "object") return;
+          m[r] = { left: m[r + ".left"], top: m[r + ".top"], right: m[r + ".right"], bottom: m[r + ".bottom"] };
+        });
+        return m;
+      });
+    });
   },
   maximize: () => {
     return OnFramer.sendMessage("Maximize");
