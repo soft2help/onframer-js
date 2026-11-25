@@ -21,7 +21,7 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 `try/catch` so the page still works when opened in a normal browser.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.12-beta/onframer.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.13-beta/onframer.js"></script>
 ```
 
 | Method | Does |
@@ -29,7 +29,7 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 | `setPosition(left, top, width, height)` | Move + resize (pixels, virtual desktop coords) |
 | `monitorInfo()` → `object[]` | Monitors with `rcMonitor`/`rcWork` rects in physical pixels (`setPosition` too): multiply CSS sizes by `devicePixelRatio` |
 | `maximize()` / `restore()` / `minimize()` | Window state |
-| `isMinimized()` → `bool` | Query minimized |
+| `isMinimized()` → `bool` | Query minimized (a real boolean since 1.0.13) |
 | `fullscreen()` / `exitFullscreen()` | Fullscreen (transparency preserved in `--widget`) |
 | `alwaysOnTop()` / `notAlwaysOnTop()` | Keep above other windows |
 | `mute()` / `unmute()` | Window audio (note: `unmute`, not `unMute`) |
@@ -102,7 +102,7 @@ messages: Windows notifications, clipboard, media keys, what's playing now (any 
 Windows: Spotify, browsers), idle time, opening links. Use the ready client:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.12-beta/desktop-bridge.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.13-beta/desktop-bridge.js"></script>
 ```
 ```javascript
 const db = DesktopBridge.connect();                       // reconnects by itself
@@ -210,6 +210,8 @@ commercial VMP-signed license (a contractual gate, not a flag).
 - There is no `close()` API — use `window.close()`. No transparency API — it's `--widget` + CSS.
 - Plugins refuse `file://` pages: serve the folder (`onframer-cli dev <folder>`, or your own plugin).
 - Tray (`OnFramer.tray`, `minimizeToTray`) and desktopBridge need the Manager running.
+  `onframer-cli manager restart` restarts it; pages using desktop-bridge.js and `tray()` reconnect.
+- clickThroughRegions/Mask switch mode on mouse movement: in test scripts, move the pointer before clicking.
 - Your own Node plugin: a folder in the user plugins folder (Manager → Configuration → Open plugins
   folder) with `config.json` (`port`, `onDemand`), `index.js`, `start.bat`, `kill.bat`; full example:
   https://docs.onframer.io/#complete-app-plugin
@@ -217,7 +219,7 @@ commercial VMP-signed license (a contractual gate, not a flag).
 ## Rules for the assistant
 
 When building an OnFramer app:
-1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.12-beta` (click-through, `OnFramer.storage`, `monitorInfo().rcWork`, tray that survives Manager restarts, `db.saveFile`).
+1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.13-beta` (click-through, `OnFramer.storage`, `monitorInfo().rcWork`, tray that survives Manager restarts, `db.saveFile`).
 2. Wrap all `OnFramer.*` calls in `try/catch`; the page must not break in a browser.
 3. Add a favicon `<link>` (it becomes the window icon).
 4. For see-through widgets, set transparent CSS background and tell the user to run with `--widget`.
