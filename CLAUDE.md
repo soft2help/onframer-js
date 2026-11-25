@@ -21,7 +21,7 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 `try/catch` so the page still works when opened in a normal browser.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.14-beta/onframer.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.15-beta/onframer.js"></script>
 ```
 
 | Method | Does |
@@ -104,7 +104,7 @@ messages: Windows notifications, clipboard, media keys, what's playing now (any 
 Windows: Spotify, browsers), idle time, opening links. Use the ready client:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.14-beta/desktop-bridge.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.15-beta/desktop-bridge.js"></script>
 ```
 ```javascript
 const db = DesktopBridge.connect();                       // reconnects by itself
@@ -212,10 +212,12 @@ commercial VMP-signed license (a contractual gate, not a flag).
 - `setPosition` is pixels on the virtual desktop; use `monitorInfo()` for HiDPI/multi-monitor.
 - There is no `close()` API — use `window.close()`. No transparency API — it's `--widget` + CSS.
 - Plugins refuse `file://` pages: serve the folder (`onframer-cli dev <folder>`, or your own plugin).
-- Tray (`OnFramer.tray`, `minimizeToTray`) and desktopBridge need the Manager running.
+- Tray (`OnFramer.tray`, `minimizeToTray`) and desktopBridge need the Manager running. The tray icon is
+  the page favicon (or `tray({ icon })`).
   `onframer-cli manager restart` restarts it; pages using desktop-bridge.js and `tray()` reconnect.
   `onframer-cli plugins list` / `plugins enable <name>` manage plugins from a terminal.
-- clickThroughRegions/Mask switch mode on mouse movement: in test scripts, move the pointer before clicking.
+- clickThroughRegions/Mask switch mode on mouse movement: in test scripts, move the pointer with real
+  input (SendInput/mouse_event, Playwright) before clicking; SetCursorPos is not seen.
 - Your own Node plugin: a folder in the user plugins folder (Manager → Configuration → Open plugins
   folder) with `config.json` (`port`, `onDemand`), `index.js`, `start.bat`, `kill.bat`; full example:
   https://docs.onframer.io/#complete-app-plugin
@@ -223,7 +225,7 @@ commercial VMP-signed license (a contractual gate, not a flag).
 ## Rules for the assistant
 
 When building an OnFramer app:
-1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.14-beta` (click-through, `OnFramer.storage`, `monitorInfo().rcWork`/`primary`, tray that survives Manager restarts, `db.saveFile`, `db.wake`).
+1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.15-beta` (click-through, `OnFramer.storage`, `monitorInfo().rcWork`/`primary`, tray that survives Manager restarts, `db.saveFile`, `db.wake`).
 2. Wrap all `OnFramer.*` calls in `try/catch`; the page must not break in a browser.
 3. Add a favicon `<link>` (it becomes the window icon).
 4. For see-through widgets, set transparent CSS background and tell the user to run with `--widget`.
