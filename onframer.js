@@ -2,7 +2,7 @@
  * Project Name: OnFramer
  * Description: This file serves as a bridge between JavaScript and Onframer (CEF), enabling control over window behavior.
  *
- * @version 1.0.11-beta
+ * @version 1.0.12-beta
  * @date 2026-11-23
  * @license MIT
  * @author Luis Fernandes
@@ -28,6 +28,8 @@
  *                gets them back on a fresh Chromium profile (one reload). get/set/remove/flush/ready.
  * - v1.0.10-beta: monitorInfo() also returns rcMonitor / rcWork objects ({left, top, right, bottom})
  *                next to the flat "rcWork.left" keys, as the docs always showed.
+ * - v1.0.12-beta: desktop-bridge.js adds db.saveFile() (Windows Save as dialog through the
+ *   desktopBridge plugin). No change in onframer.js itself.
  * - v1.0.11-beta: tray reconnects and sets its icon again after the Manager restarts (it used to
  *                stay dead until a reload); minimizeToTray / restoreFromTray send the page title so
  *                the Manager hides THIS window, not the first OnFramer window it finds; tray errors

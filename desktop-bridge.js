@@ -7,6 +7,8 @@
 //   db.on('key', (k) => ...);                  // global key hook (event "key", topic "keys")
 //   await db.hotkeys(['ctrl+alt+t']);          // global hotkeys, then:
 //   db.on('hotkey', ({ combo }) => ...);       // fires only for this page's combos
+//   await db.saveFile({ name, content });       // Windows "Save as" dialog, writes the file
+//   db.up                                      // true while connected
 //
 // Reconnects on its own (4 s, then backing off to 30 s; every 30 s while hidden; at once when the
 // page is shown or focused),
@@ -100,6 +102,10 @@
       // [] removes them. Resolves {registered, failed}; a combo another app holds lands in failed.
       // They are released when the page closes.
       hotkeys(combos) { return this.call('hotkeys', { combos: combos || [] }); },
+      // Windows "Save as" dialog, then the plugin writes the file the user picked. opts: {name,
+      // content (text) | base64, types: [{description, extensions: ['.json']}]}. Resolves {path, bytes}
+      // or {canceled: true}; waits for the user up to 15 minutes. Use it from a click handler.
+      saveFile(opts) { return this.call('saveFile', opts || {}, 15 * 60 * 1000); },
       call(cmd, args, timeoutMs) {
         return new Promise((ok, ko) => {
           if (!up) return ko(new Error('desktopBridge plugin not running'));
