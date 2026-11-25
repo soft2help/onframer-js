@@ -8,6 +8,7 @@
 //   await db.hotkeys(['ctrl+alt+t']);          // global hotkeys, then:
 //   db.on('hotkey', ({ combo }) => ...);       // fires only for this page's combos
 //   await db.saveFile({ name, content });       // Windows "Save as" dialog, writes the file
+//   await db.wake('systemBridge');             // start a sleeping on-demand plugin
 //   db.up                                      // true while connected
 //
 // Reconnects on its own (4 s, then backing off to 30 s; every 30 s while hidden; at once when the
@@ -106,6 +107,9 @@
       // content (text) | base64, types: [{description, extensions: ['.json']}]}. Resolves {path, bytes}
       // or {canceled: true}; waits for the user up to 15 minutes. Use it from a click handler.
       saveFile(opts) { return this.call('saveFile', opts || {}, 15 * 60 * 1000); },
+      // Start an on-demand plugin that is asleep (e.g. 'systemBridge') and wait until it listens.
+      // Needed only for pages the Manager did not open itself (onframer-cli dev, onframer.exe --url).
+      wake(name) { return this.call('wakePlugin', { name }, 20000); },
       call(cmd, args, timeoutMs) {
         return new Promise((ok, ko) => {
           if (!up) return ko(new Error('desktopBridge plugin not running'));

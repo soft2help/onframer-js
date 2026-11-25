@@ -21,13 +21,13 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 `try/catch` so the page still works when opened in a normal browser.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.13-beta/onframer.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.14-beta/onframer.js"></script>
 ```
 
 | Method | Does |
 |---|---|
 | `setPosition(left, top, width, height)` | Move + resize (pixels, virtual desktop coords) |
-| `monitorInfo()` → `object[]` | Monitors with `rcMonitor`/`rcWork` rects in physical pixels (`setPosition` too): multiply CSS sizes by `devicePixelRatio` |
+| `monitorInfo()` → `object[]` | Monitors with `rcMonitor`/`rcWork` rects in physical pixels (`setPosition` too): multiply CSS sizes by `devicePixelRatio`; `primary: true` on the main one (1.0.14+) |
 | `maximize()` / `restore()` / `minimize()` | Window state |
 | `isMinimized()` → `bool` | Query minimized (a real boolean since 1.0.13) |
 | `fullscreen()` / `exitFullscreen()` | Fullscreen (transparency preserved in `--widget`) |
@@ -93,8 +93,10 @@ network on `ws://localhost:9092`). The hardware-bridge pattern:
 
 ```javascript
 const ws = new WebSocket("ws://localhost:9092");
-ws.onmessage = (e) => render(JSON.parse(e.data)); // { cpuPercent, memUsedPercent, ... }
+ws.onmessage = (e) => render(JSON.parse(e.data)); // { type: "system", cpuPercent, memUsedPercent, ... }
 ```
+systemBridge sleeps until needed: in a page the Manager did not open, call `db.wake("systemBridge")`
+first, or use the `cpu`/`memory` providers (they wake it).
 Extend systemBridge with `serialport`, `@abandonware/noble` (BLE), or `node-hid`.
 
 **desktopBridge** (`ws://127.0.0.1:9093`) gives a widget desktop powers through request/reply
@@ -102,7 +104,7 @@ messages: Windows notifications, clipboard, media keys, what's playing now (any 
 Windows: Spotify, browsers), idle time, opening links. Use the ready client:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.13-beta/desktop-bridge.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.14-beta/desktop-bridge.js"></script>
 ```
 ```javascript
 const db = DesktopBridge.connect();                       // reconnects by itself
@@ -115,6 +117,7 @@ await db.call("storageSave", { widget: "MyApp", data: { tasks: JSON.stringify(ta
 await db.hotkeys(["ctrl+alt+t"]);
 db.on("hotkey", ({ combo }) => toggle());
 const { path } = await db.saveFile({ name: "tasks.json", content: json }); // Save as dialog → file ({canceled:true} if closed)
+await db.wake("systemBridge");                           // start a sleeping on-demand plugin (pages the Manager did not open)
 const { text } = await db.call("clipboard.read");
 await db.call("media", { action: "playpause" });          // next | prev | volup | voldown | mute
 const { seconds } = await db.call("idle");                // since the last input anywhere
@@ -211,6 +214,7 @@ commercial VMP-signed license (a contractual gate, not a flag).
 - Plugins refuse `file://` pages: serve the folder (`onframer-cli dev <folder>`, or your own plugin).
 - Tray (`OnFramer.tray`, `minimizeToTray`) and desktopBridge need the Manager running.
   `onframer-cli manager restart` restarts it; pages using desktop-bridge.js and `tray()` reconnect.
+  `onframer-cli plugins list` / `plugins enable <name>` manage plugins from a terminal.
 - clickThroughRegions/Mask switch mode on mouse movement: in test scripts, move the pointer before clicking.
 - Your own Node plugin: a folder in the user plugins folder (Manager → Configuration → Open plugins
   folder) with `config.json` (`port`, `onDemand`), `index.js`, `start.bat`, `kill.bat`; full example:
@@ -219,7 +223,7 @@ commercial VMP-signed license (a contractual gate, not a flag).
 ## Rules for the assistant
 
 When building an OnFramer app:
-1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.13-beta` (click-through, `OnFramer.storage`, `monitorInfo().rcWork`, tray that survives Manager restarts, `db.saveFile`).
+1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.14-beta` (click-through, `OnFramer.storage`, `monitorInfo().rcWork`/`primary`, tray that survives Manager restarts, `db.saveFile`, `db.wake`).
 2. Wrap all `OnFramer.*` calls in `try/catch`; the page must not break in a browser.
 3. Add a favicon `<link>` (it becomes the window icon).
 4. For see-through widgets, set transparent CSS background and tell the user to run with `--widget`.
