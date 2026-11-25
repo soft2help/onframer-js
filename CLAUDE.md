@@ -21,7 +21,7 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 `try/catch` so the page still works when opened in a normal browser.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.11-beta/onframer.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.12-beta/onframer.js"></script>
 ```
 
 | Method | Does |
@@ -102,7 +102,7 @@ messages: Windows notifications, clipboard, media keys, what's playing now (any 
 Windows: Spotify, browsers), idle time, opening links. Use the ready client:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.11-beta/desktop-bridge.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.12-beta/desktop-bridge.js"></script>
 ```
 ```javascript
 const db = DesktopBridge.connect();                       // reconnects by itself
@@ -114,6 +114,7 @@ await db.call("storageSave", { widget: "MyApp", data: { tasks: JSON.stringify(ta
 // Global hotkey (only this page gets it; released when the page closes). Re-register on reconnect.
 await db.hotkeys(["ctrl+alt+t"]);
 db.on("hotkey", ({ combo }) => toggle());
+const { path } = await db.saveFile({ name: "tasks.json", content: json }); // Save as dialog → file ({canceled:true} if closed)
 const { text } = await db.call("clipboard.read");
 await db.call("media", { action: "playpause" });          // next | prev | volup | voldown | mute
 const { seconds } = await db.call("idle");                // since the last input anywhere
@@ -216,14 +217,15 @@ commercial VMP-signed license (a contractual gate, not a flag).
 ## Rules for the assistant
 
 When building an OnFramer app:
-1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.11-beta` (click-through, `OnFramer.storage`, `monitorInfo().rcWork`, tray that survives Manager restarts).
+1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.12-beta` (click-through, `OnFramer.storage`, `monitorInfo().rcWork`, tray that survives Manager restarts, `db.saveFile`).
 2. Wrap all `OnFramer.*` calls in `try/catch`; the page must not break in a browser.
 3. Add a favicon `<link>` (it becomes the window icon).
 4. For see-through widgets, set transparent CSS background and tell the user to run with `--widget`.
 5. Prefer real web APIs (WebGPU, WebRTC, File System Access) over native shims when possible.
 6. For hardware/OS access, design a Node plugin that bridges to the page over WebSocket.
 7. Save app data with desktopBridge `storageSave`/`storageLoad` (or `OnFramer.storage` on a gallery
-   widget page), not only localStorage; files the user picks via `showSaveFilePicker`.
+   widget page), not only localStorage. Export with `db.saveFile` (Save as dialog); Chromium's
+   `showSaveFilePicker` can abort in small widgets.
 8. Tell the user to run the app with `onframer-cli dev <folder>`, never as `file://`.
 
 ## Links
