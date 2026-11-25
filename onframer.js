@@ -2,7 +2,7 @@
  * Project Name: OnFramer
  * Description: This file serves as a bridge between JavaScript and Onframer (CEF), enabling control over window behavior.
  *
- * @version 1.0.10-beta
+ * @version 1.0.11-beta
  * @date 2026-11-23
  * @license MIT
  * @author Luis Fernandes
@@ -28,6 +28,10 @@
  *                gets them back on a fresh Chromium profile (one reload). get/set/remove/flush/ready.
  * - v1.0.10-beta: monitorInfo() also returns rcMonitor / rcWork objects ({left, top, right, bottom})
  *                next to the flat "rcWork.left" keys, as the docs always showed.
+ * - v1.0.11-beta: tray reconnects and sets its icon again after the Manager restarts (it used to
+ *                stay dead until a reload); minimizeToTray / restoreFromTray send the page title so
+ *                the Manager hides THIS window, not the first OnFramer window it finds; tray errors
+ *                say the Manager isn't running instead of rejecting with a bare Event.
  *
  * Usage:
  * Place it in your web project in javascript files section.
@@ -153,14 +157,34 @@ let OnFramer = {
   _trayWs: null,
   _trayCbs: {},
   _trayClickCb: null,
+  // The tray belongs to the OnframerManager (TrayBridge, ws://127.0.0.1:9099). If the Manager
+  // restarts, the socket closes: reconnect (5 s, then up to 30 s) and set the icon again, so the
+  // page doesn't need a reload. removeTray() stops that.
+  _trayLast: null,
+  _trayRetry: 0,
+  _trayTimer: null,
   _trayConnect: function () {
-    if (OnFramer._trayWs && OnFramer._trayWs.readyState <= 1) return Promise.resolve();
-    return new Promise((resolve, reject) => {
+    if (OnFramer._trayWs && OnFramer._trayWs.readyState <= 1 && OnFramer._trayOpening) return OnFramer._trayOpening;
+    OnFramer._trayOpening = new Promise((resolve, reject) => {
       try {
-        var ws = new WebSocket("ws://localhost:9099");
+        var ws = new WebSocket("ws://127.0.0.1:9099");
         OnFramer._trayWs = ws;
-        ws.onopen = () => resolve();
-        ws.onerror = (e) => reject(e);
+        ws.onopen = () => {
+          OnFramer._trayRetry = 0;
+          if (OnFramer._trayLast) ws.send(JSON.stringify(OnFramer._trayLast));   // back after a restart
+          resolve();
+        };
+        ws.onerror = () => reject(new Error("OnFramer Manager not running (tray bridge ws://127.0.0.1:9099)"));
+        ws.onclose = () => {
+          if (OnFramer._trayWs !== ws) return;
+          OnFramer._trayWs = null; OnFramer._trayOpening = null;
+          if (!OnFramer._trayLast) return;
+          var wait = Math.min(30000, 5000 * Math.pow(2, OnFramer._trayRetry++));
+          OnFramer._trayTimer = setTimeout(() => {
+            OnFramer._trayTimer = null;
+            if (OnFramer._trayLast) OnFramer._trayConnect().catch(() => {});
+          }, wait);
+        };
         ws.onmessage = (ev) => {
           try {
             var m = JSON.parse(ev.data);
@@ -170,30 +194,39 @@ let OnFramer = {
         };
       } catch (e) { reject(e); }
     });
+    OnFramer._trayOpening.catch(() => { OnFramer._trayOpening = null; });
+    return OnFramer._trayOpening;
   },
   // tray({ tooltip, menu:[{id,label,onClick}], onClick }) — set the app's tray icon + menu.
   tray: function (opts) {
     opts = opts || {};
+    OnFramer._trayCbs = {};
+    var menu = (opts.menu || []).map((it) => {
+      if (it.onClick) OnFramer._trayCbs[it.id] = it.onClick;
+      return { id: it.id, label: it.label };
+    });
+    OnFramer._trayClickCb = opts.onClick || null;
+    var msg = { cmd: "tray.set", tooltip: opts.tooltip || "", menu: menu };
+    var wasOpen = OnFramer._trayWs && OnFramer._trayWs.readyState === 1;
+    OnFramer._trayLast = msg;
     return OnFramer._trayConnect().then(() => {
-      OnFramer._trayCbs = {};
-      var menu = (opts.menu || []).map((it) => {
-        if (it.onClick) OnFramer._trayCbs[it.id] = it.onClick;
-        return { id: it.id, label: it.label };
-      });
-      OnFramer._trayClickCb = opts.onClick || null;
-      OnFramer._trayWs.send(JSON.stringify({ cmd: "tray.set", tooltip: opts.tooltip || "", menu: menu }));
+      if (wasOpen) OnFramer._trayWs.send(JSON.stringify(msg));   // a fresh socket already sent it on open
     });
   },
   removeTray: function () {
+    OnFramer._trayLast = null;
+    if (OnFramer._trayTimer) { clearTimeout(OnFramer._trayTimer); OnFramer._trayTimer = null; }
     if (OnFramer._trayWs && OnFramer._trayWs.readyState === 1)
       OnFramer._trayWs.send(JSON.stringify({ cmd: "tray.remove" }));
   },
   // Minimize-to-tray: hide the window (a tray icon brings it back).
+  // The page's title tells the Manager which OnFramer window to hide or show (the window title is
+  // the page title); without it the Manager took the first OnFramer window it found.
   minimizeToTray: function () {
-    return OnFramer._trayConnect().then(() => OnFramer._trayWs.send(JSON.stringify({ cmd: "hide" })));
+    return OnFramer._trayConnect().then(() => OnFramer._trayWs.send(JSON.stringify({ cmd: "hide", title: (window.document && document.title) || "" })));
   },
   restoreFromTray: function () {
-    return OnFramer._trayConnect().then(() => OnFramer._trayWs.send(JSON.stringify({ cmd: "show" })));
+    return OnFramer._trayConnect().then(() => OnFramer._trayWs.send(JSON.stringify({ cmd: "show", title: (window.document && document.title) || "" })));
   },
 
   // --- Per-region click-through (auto) ---
