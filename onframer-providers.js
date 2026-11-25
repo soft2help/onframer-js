@@ -77,7 +77,8 @@
       const now = Date.now();
       if (hooks.wake && s.need && !(s.wakeAt > now - 30000)) {
         s.wakeAt = now;
-        Promise.resolve().then(hooks.wake).then(() => { if (s.need && !s.ws) open(); }, () => {});
+        // A wake that failed (desktopBridge itself restarting, e.g. a Manager restart) may be tried again soon.
+        Promise.resolve().then(hooks.wake).then(() => { if (s.need && !s.ws) open(); }, () => { s.wakeAt = Date.now() - 25000; });
       }
     }
     function close() {

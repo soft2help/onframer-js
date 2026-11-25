@@ -2,7 +2,7 @@
  * Project Name: OnFramer
  * Description: This file serves as a bridge between JavaScript and Onframer (CEF), enabling control over window behavior.
  *
- * @version 1.0.14-beta
+ * @version 1.0.15-beta
  * @date 2026-11-23
  * @license MIT
  * @author Luis Fernandes
@@ -28,6 +28,8 @@
  *                gets them back on a fresh Chromium profile (one reload). get/set/remove/flush/ready.
  * - v1.0.10-beta: monitorInfo() also returns rcMonitor / rcWork objects ({left, top, right, bottom})
  *                next to the flat "rcWork.left" keys, as the docs always showed.
+ * - v1.0.15-beta: tray() shows the page favicon (or opts.icon) as the tray icon instead of the generic
+ *   Windows one (needs OnFramer build 29+; older Managers ignore it).
  * - v1.0.14-beta: monitorInfo() marks the primary monitor (primary: true; it is the one at 0,0).
  * - v1.0.13-beta: isMinimized() resolves a boolean (it used to give {isMinimized: true|false},
  *   so `if (await OnFramer.isMinimized())` was always true).
@@ -208,6 +210,33 @@ let OnFramer = {
     return OnFramer._trayOpening;
   },
   // tray({ tooltip, menu:[{id,label,onClick}], onClick }) — set the app's tray icon + menu.
+  // The tray icon: opts.icon (any image URL, a data URL) or the page favicon, drawn into a 32x32 PNG.
+  // SVG favicons work. Resolves null when there is none or it can't be read (cross-origin).
+  _trayIcon: function (src) {
+    return new Promise(function (resolve) {
+      try {
+        if (!src && typeof document !== "undefined" && document.querySelector) {
+          var l = document.querySelector('link[rel~="icon"]');
+          src = l && l.href;
+        }
+        if (!src || typeof Image === "undefined") return resolve(null);
+        var t = setTimeout(function () { resolve(null); }, 3000);
+        var img = new Image();
+        if (!/^data:/.test(src)) img.crossOrigin = "anonymous";
+        img.onload = function () {
+          clearTimeout(t);
+          try {
+            var c = document.createElement("canvas");
+            c.width = c.height = 32;
+            c.getContext("2d").drawImage(img, 0, 0, 32, 32);
+            resolve(c.toDataURL("image/png"));
+          } catch (e) { resolve(null); }
+        };
+        img.onerror = function () { clearTimeout(t); resolve(null); };
+        img.src = src;
+      } catch (e) { resolve(null); }
+    });
+  },
   tray: function (opts) {
     opts = opts || {};
     OnFramer._trayCbs = {};
@@ -217,10 +246,13 @@ let OnFramer = {
     });
     OnFramer._trayClickCb = opts.onClick || null;
     var msg = { cmd: "tray.set", tooltip: opts.tooltip || "", menu: menu };
-    var wasOpen = OnFramer._trayWs && OnFramer._trayWs.readyState === 1;
-    OnFramer._trayLast = msg;
-    return OnFramer._trayConnect().then(() => {
-      if (wasOpen) OnFramer._trayWs.send(JSON.stringify(msg));   // a fresh socket already sent it on open
+    return OnFramer._trayIcon(opts.icon).then(function (icon) {
+      if (icon) msg.icon = icon;
+      var wasOpen = OnFramer._trayWs && OnFramer._trayWs.readyState === 1;
+      OnFramer._trayLast = msg;
+      return OnFramer._trayConnect().then(() => {
+        if (wasOpen) OnFramer._trayWs.send(JSON.stringify(msg));   // a fresh socket already sent it on open
+      });
     });
   },
   removeTray: function () {
