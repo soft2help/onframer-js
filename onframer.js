@@ -2,7 +2,7 @@
  * Project Name: OnFramer
  * Description: This file serves as a bridge between JavaScript and Onframer (CEF), enabling control over window behavior.
  *
- * @version 1.0.13-beta
+ * @version 1.0.14-beta
  * @date 2026-11-23
  * @license MIT
  * @author Luis Fernandes
@@ -28,6 +28,7 @@
  *                gets them back on a fresh Chromium profile (one reload). get/set/remove/flush/ready.
  * - v1.0.10-beta: monitorInfo() also returns rcMonitor / rcWork objects ({left, top, right, bottom})
  *                next to the flat "rcWork.left" keys, as the docs always showed.
+ * - v1.0.14-beta: monitorInfo() marks the primary monitor (primary: true; it is the one at 0,0).
  * - v1.0.13-beta: isMinimized() resolves a boolean (it used to give {isMinimized: true|false},
  *   so `if (await OnFramer.isMinimized())` was always true).
  * - v1.0.12-beta: desktop-bridge.js adds db.saveFile() (Windows Save as dialog through the
@@ -110,6 +111,8 @@ let OnFramer = {
           if (m[r] && typeof m[r] === "object") return;
           m[r] = { left: m[r + ".left"], top: m[r + ".top"], right: m[r + ".right"], bottom: m[r + ".bottom"] };
         });
+        // Windows always puts the primary monitor's top-left corner at 0,0.
+        if (typeof m.primary !== "boolean") m.primary = m.rcMonitor.left === 0 && m.rcMonitor.top === 0;
         return m;
       });
     });

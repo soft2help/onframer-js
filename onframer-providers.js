@@ -73,6 +73,12 @@
       s.fails++;
       s.ready.splice(0).forEach((r) => r.ko(err("plugin not running (" + url + ")")));
       if (s.need) s.timer = setTimeout(open, Math.min(30000, 2000 * Math.pow(2, Math.min(4, s.fails - 1))));
+      // An on-demand plugin may be asleep: ask for it (at most every 30 s), then connect at once.
+      const now = Date.now();
+      if (hooks.wake && s.need && !(s.wakeAt > now - 30000)) {
+        s.wakeAt = now;
+        Promise.resolve().then(hooks.wake).then(() => { if (s.need && !s.ws) open(); }, () => {});
+      }
     }
     function close() {
       clearTimeout(s.timer); s.timer = null;
@@ -127,6 +133,12 @@
       if (m.network) deliver("network", { rxPerSec: m.network.rxPerSec, txPerSec: m.network.txPerSec, interfaces: m.networks || [] });
     },
     down() { fail(["system"], "systemBridge plugin not running"); },
+    // systemBridge sleeps until someone needs it. The Manager wakes it for the widgets it opens; for any
+    // other page, desktopBridge asks the Manager (wakePlugin).
+    wake() {
+      desktop.hold();
+      return desktop.call("wakePlugin", { name: "systemBridge" }, 20000).finally(() => desktop.release());
+    },
   });
 
   // ---- provider definitions ----
