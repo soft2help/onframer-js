@@ -21,13 +21,13 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 `try/catch` so the page still works when opened in a normal browser.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.10-beta/onframer.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.11-beta/onframer.js"></script>
 ```
 
 | Method | Does |
 |---|---|
 | `setPosition(left, top, width, height)` | Move + resize (pixels, virtual desktop coords) |
-| `monitorInfo()` → `object[]` | Monitors with `rcMonitor`/`rcWork` rects + scale |
+| `monitorInfo()` → `object[]` | Monitors with `rcMonitor`/`rcWork` rects in physical pixels (`setPosition` too): multiply CSS sizes by `devicePixelRatio` |
 | `maximize()` / `restore()` / `minimize()` | Window state |
 | `isMinimized()` → `bool` | Query minimized |
 | `fullscreen()` / `exitFullscreen()` | Fullscreen (transparency preserved in `--widget`) |
@@ -102,12 +102,12 @@ messages: Windows notifications, clipboard, media keys, what's playing now (any 
 Windows: Spotify, browsers), idle time, opening links. Use the ready client:
 
 ```html
-<script src="https://examples.onframer.io/assets/js/desktop-bridge.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.11-beta/desktop-bridge.js"></script>
 ```
 ```javascript
 const db = DesktopBridge.connect();                       // reconnects by itself
 db.onStatus((up) => banner.hidden = up);                  // show "enable the plugin" when down
-await db.call("notify", { title: "Done", body: "Export finished" });
+await db.call("notify", { app: "MyApp", title: "Done", body: "Export finished" }); // app = sender name
 // The app's own JSON file on disk (user folder, survives updates). Values are strings.
 const { data } = await db.call("storageLoad", { widget: "MyApp" });
 await db.call("storageSave", { widget: "MyApp", data: { tasks: JSON.stringify(tasks) } });
@@ -216,7 +216,7 @@ commercial VMP-signed license (a contractual gate, not a flag).
 ## Rules for the assistant
 
 When building an OnFramer app:
-1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.10-beta` (click-through, `OnFramer.storage`, `monitorInfo().rcWork`).
+1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.11-beta` (click-through, `OnFramer.storage`, `monitorInfo().rcWork`, tray that survives Manager restarts).
 2. Wrap all `OnFramer.*` calls in `try/catch`; the page must not break in a browser.
 3. Add a favicon `<link>` (it becomes the window icon).
 4. For see-through widgets, set transparent CSS background and tell the user to run with `--widget`.
