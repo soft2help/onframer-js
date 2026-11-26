@@ -2,7 +2,7 @@
  * Project Name: OnFramer
  * Description: This file serves as a bridge between JavaScript and Onframer (CEF), enabling control over window behavior.
  *
- * @version 1.0.16-beta
+ * @version 1.0.17-beta
  * @date 2026-11-26
  * @license MIT
  * @author Luis Fernandes
@@ -28,6 +28,8 @@
  *                gets them back on a fresh Chromium profile (one reload). get/set/remove/flush/ready.
  * - v1.0.10-beta: monitorInfo() also returns rcMonitor / rcWork objects ({left, top, right, bottom})
  *                next to the flat "rcWork.left" keys, as the docs always showed.
+ * - v1.0.17-beta: desktop-bridge.js db.onClipboard(f) calls f(text) when the clipboard text changes
+ *   (polls clipboard.read while the page is visible) and returns a stop function.
  * - v1.0.16-beta: windowState() gives the window's rect (physical px) and whether it is minimized,
  *   maximized, fullscreen, always on top and visible (build 31+; older builds get an estimate from
  *   screenX/outerWidth). isMaximized() / isAlwaysOnTop() resolve booleans. setIgnoreMouseEvents(true)
