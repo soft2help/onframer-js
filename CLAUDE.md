@@ -21,12 +21,12 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 `try/catch` so the page still works when opened in a normal browser.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.17-beta/onframer.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.18-beta/onframer.js"></script>
 ```
 
 | Method | Does |
 |---|---|
-| `setPosition(left, top, width, height)` | Move + resize (pixels, virtual desktop coords) |
+| `setPosition(left, top, width, height)` | Move + resize (pixels, virtual desktop coords). Keeps the size when the move lands on a monitor with another scale (1.0.18+) |
 | `monitorInfo()` → `object[]` | Monitors with `rcMonitor`/`rcWork` rects in physical pixels (`setPosition` too): multiply CSS sizes by `devicePixelRatio`; `primary: true` on the main one (1.0.14+) |
 | `maximize()` / `restore()` / `minimize()` | Window state |
 | `isMinimized()` / `isMaximized()` / `isAlwaysOnTop()` → `bool` | Query the window state (`isMaximized`/`isAlwaysOnTop` 1.0.16+) |
@@ -107,7 +107,7 @@ messages: Windows notifications, clipboard, media keys, what's playing now (any 
 Windows: Spotify, browsers), idle time, opening links. Use the ready client:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.17-beta/desktop-bridge.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.18-beta/desktop-bridge.js"></script>
 ```
 ```javascript
 const db = DesktopBridge.connect();                       // reconnects by itself
@@ -242,7 +242,7 @@ commercial VMP-signed license (a contractual gate, not a flag).
 ## Rules for the assistant
 
 When building an OnFramer app:
-1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.17-beta` (`windowState()`, ghost mode over a mask, click-through, `OnFramer.storage`, `monitorInfo().rcWork`/`primary`, tray that survives Manager restarts, `db.saveFile`, `db.wake`, `db.onClipboard`).
+1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.18-beta` (`windowState()`, ghost mode over a mask, click-through, `OnFramer.storage`, `monitorInfo().rcWork`/`primary`, tray that survives Manager restarts, `db.saveFile`, `db.wake`, `db.onClipboard`).
 2. Wrap all `OnFramer.*` calls in `try/catch`; the page must not break in a browser.
 3. Add a favicon `<link>` (it becomes the window icon).
 4. For see-through widgets, set transparent CSS background and tell the user to run with `--widget`.
