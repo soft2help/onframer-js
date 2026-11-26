@@ -2,7 +2,7 @@
  * Project Name: OnFramer
  * Description: This file serves as a bridge between JavaScript and Onframer (CEF), enabling control over window behavior.
  *
- * @version 1.0.17-beta
+ * @version 1.0.18-beta
  * @date 2026-11-26
  * @license MIT
  * @author Luis Fernandes
@@ -28,6 +28,8 @@
  *                gets them back on a fresh Chromium profile (one reload). get/set/remove/flush/ready.
  * - v1.0.10-beta: monitorInfo() also returns rcMonitor / rcWork objects ({left, top, right, bottom})
  *                next to the flat "rcWork.left" keys, as the docs always showed.
+ * - v1.0.18-beta: setPosition() keeps the requested size when the move crosses onto a monitor with
+ *   another scale (Windows resized the window after the move; the SDK now sends the rect once more).
  * - v1.0.17-beta: desktop-bridge.js db.onClipboard(f) calls f(text) when the clipboard text changes
  *   (polls clipboard.read while the page is visible) and returns a stop function.
  * - v1.0.16-beta: windowState() gives the window's rect (physical px) and whether it is minimized,
@@ -103,12 +105,24 @@ let OnFramer = {
       }
     });
   },
+  // Moving onto a monitor with another scale (125 % -> 100 %), Windows resizes the window after the
+  // move to keep its CSS size, so the requested physical size was lost (400x260 became 320x208).
+  // When the size came out wrong, send the same rect once more: the window is on the new monitor by
+  // then, so it sticks. Builds without Window.GetState (before 31) skip the check.
   setPosition: (left, top, width, height) => {
-    return OnFramer.sendMessage(
-      "Position",
-      `${left},${top},${width},${height}`
-    );
+    const rect = `${left},${top},${width},${height}`;
+    return OnFramer.sendMessage("Position", rect).then(function (r) {
+      if (!(width > 0 && height > 0) || typeof setTimeout !== "function") return r;
+      return new Promise(function (ok) { setTimeout(ok, OnFramer._dpiSettleMs); })
+        .then(function () { return OnFramer.sendMessage("GetState"); })
+        .then(function (s) {
+          if (!s || typeof s.x !== "number") return r;
+          if (Math.abs(s.width - width) <= 2 && Math.abs(s.height - height) <= 2) return r;
+          return OnFramer.sendMessage("Position", rect);
+        }, function () { return r; });
+    });
   },
+  _dpiSettleMs: 120,
   // The native side sends flat keys ("rcWork.left"). Each monitor also gets rcMonitor / rcWork
   // objects ({left, top, right, bottom}), so m.rcWork.left works as documented.
   monitorInfo: () => {
