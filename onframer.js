@@ -2,8 +2,8 @@
  * Project Name: OnFramer
  * Description: This file serves as a bridge between JavaScript and Onframer (CEF), enabling control over window behavior.
  *
- * @version 1.0.15-beta
- * @date 2026-11-23
+ * @version 1.0.16-beta
+ * @date 2026-11-26
  * @license MIT
  * @author Luis Fernandes
  *
@@ -28,6 +28,11 @@
  *                gets them back on a fresh Chromium profile (one reload). get/set/remove/flush/ready.
  * - v1.0.10-beta: monitorInfo() also returns rcMonitor / rcWork objects ({left, top, right, bottom})
  *                next to the flat "rcWork.left" keys, as the docs always showed.
+ * - v1.0.16-beta: windowState() gives the window's rect (physical px) and whether it is minimized,
+ *   maximized, fullscreen, always on top and visible (build 31+; older builds get an estimate from
+ *   screenX/outerWidth). isMaximized() / isAlwaysOnTop() resolve booleans. setIgnoreMouseEvents(true)
+ *   pauses a running clickThroughMask/clickThroughRegions (they would undo it on the next mouse
+ *   move) and setIgnoreMouseEvents(false) turns them back on.
  * - v1.0.15-beta: tray() shows the page favicon (or opts.icon) as the tray icon instead of the generic
  *   Windows one (needs OnFramer build 29+; older Managers ignore it).
  * - v1.0.14-beta: monitorInfo() marks the primary monitor (primary: true; it is the one at 0,0).
@@ -131,6 +136,38 @@ let OnFramer = {
     return OnFramer.sendMessage("IsMinimized").then((r) =>
       r && typeof r === "object" ? r.isMinimized === true : r === true || r === "true");
   },
+  isMaximized: () => {
+    return OnFramer.sendMessage("IsMaximized").then((r) =>
+      r && typeof r === "object" ? r.isMaximized === true : r === true || r === "true");
+  },
+  isAlwaysOnTop: () => {
+    return OnFramer.sendMessage("IsAlwaysOnTop").then((r) =>
+      r && typeof r === "object" ? r.isAlwaysOnTop === true : r === true || r === "true");
+  },
+  // {x, y, width, height, minimized, maximized, fullscreen, alwaysOnTop, visible}. The rect is in
+  // physical pixels, the same units as setPosition() and monitorInfo(), so
+  // setPosition(s.x, s.y, s.width, s.height) puts the window back where it was.
+  // OnFramer builds before 31 don't know Window.GetState: the SDK then works it out from
+  // screenX/outerWidth × devicePixelRatio and the IsMinimized/IsMaximized/IsAlwaysOnTop calls.
+  windowState: () => {
+    return OnFramer.sendMessage("GetState").then(function (s) {
+      if (s && typeof s === "object" && typeof s.x === "number") return s;
+      var dpr = window.devicePixelRatio || 1;
+      var no = function () { return false; };
+      return Promise.all([
+        OnFramer.isMinimized().catch(no),
+        OnFramer.isMaximized().catch(no),
+        OnFramer.isAlwaysOnTop().catch(no),
+      ]).then(function (f) {
+        var w = Math.round(window.outerWidth * dpr), h = Math.round(window.outerHeight * dpr);
+        return {
+          x: Math.round(window.screenX * dpr), y: Math.round(window.screenY * dpr), width: w, height: h,
+          minimized: f[0], maximized: f[1], alwaysOnTop: f[2], visible: !document.hidden,
+          fullscreen: !f[1] && w >= Math.round(screen.width * dpr) && h >= Math.round(screen.height * dpr),
+        };
+      });
+    });
+  },
   restore: () => {
     return OnFramer.sendMessage("Restore");
   },
@@ -156,12 +193,31 @@ let OnFramer = {
   // opts.forward is reserved for mouse-move forwarding (not yet active).
   // Toggle per element (mouseenter -> false on opaque, mouseleave -> true) to
   // make a transparent overlay interactive only over its opaque parts.
+  //
+  // A running clickThroughMask / clickThroughRegions decides click-through on every mouse move, so
+  // it would undo ignore=true at once. ignore=true pauses them; ignore=false turns them back on.
+  _ctPaused: null,
   setIgnoreMouseEvents: (ignore, opts) => {
     var forward = opts && opts.forward ? 1 : 0;
-    return OnFramer.sendMessage(
-      "SetIgnoreMouseEvents",
-      `${ignore ? 1 : 0},${forward}`
-    );
+    var send = function () {
+      return OnFramer.sendMessage("SetIgnoreMouseEvents", `${ignore ? 1 : 0},${forward}`);
+    };
+    if (ignore) {
+      var paused = null;
+      if (OnFramer._ctmSelector) paused = { mask: OnFramer._ctmSelector, cell: OnFramer._ctmCell, mode: OnFramer._ctmMode };
+      else if (OnFramer._ctrSelector) paused = { regions: OnFramer._ctrSelector };
+      if (!paused) return send();
+      var stop = paused.mask ? OnFramer.stopClickThroughMask() : OnFramer.stopClickThroughRegions();
+      OnFramer._ctPaused = paused;
+      return stop.catch(function () {}).then(send);
+    }
+    var back = OnFramer._ctPaused;
+    OnFramer._ctPaused = null;
+    return send().then(function (r) {
+      if (back && back.mask) OnFramer.clickThroughMask(back.mask, { cell: back.cell, mode: back.mode });
+      else if (back && back.regions) OnFramer.clickThroughRegions(back.regions);
+      return r;
+    });
   },
 
   // --- Tray API + minimize-to-tray (via OnframerManager bridge, ws://localhost:9099) ---
@@ -317,6 +373,7 @@ let OnFramer = {
   },
   _ctrLast: null,
   clickThroughRegions: function (selector) {
+    OnFramer._ctPaused = null; // started by hand: nothing left to resume
     OnFramer._ctrSelector = selector || ".ct-interactive";
     OnFramer._ctrLast = null; // force the first push to send
     OnFramer._pushClickThroughRegions();
@@ -528,6 +585,7 @@ let OnFramer = {
     return true;
   },
   clickThroughMask: function (selector, opts) {
+    OnFramer._ctPaused = null; // started by hand: nothing left to resume
     OnFramer._ctmSelector = selector || ".ct-interactive";
     OnFramer._ctmCell = (opts && opts.cell) || 6;
     OnFramer._ctmMode = (opts && opts.mode) === "canvas" ? "canvas" : "geometry";

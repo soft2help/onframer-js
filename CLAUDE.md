@@ -21,7 +21,7 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 `try/catch` so the page still works when opened in a normal browser.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.15-beta/onframer.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.16-beta/onframer.js"></script>
 ```
 
 | Method | Does |
@@ -29,11 +29,12 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 | `setPosition(left, top, width, height)` | Move + resize (pixels, virtual desktop coords) |
 | `monitorInfo()` → `object[]` | Monitors with `rcMonitor`/`rcWork` rects in physical pixels (`setPosition` too): multiply CSS sizes by `devicePixelRatio`; `primary: true` on the main one (1.0.14+) |
 | `maximize()` / `restore()` / `minimize()` | Window state |
-| `isMinimized()` → `bool` | Query minimized (a real boolean since 1.0.13) |
+| `isMinimized()` / `isMaximized()` / `isAlwaysOnTop()` → `bool` | Query the window state (`isMaximized`/`isAlwaysOnTop` 1.0.16+) |
+| `windowState()` → `{x, y, width, height, minimized, maximized, fullscreen, alwaysOnTop, visible}` | Where the window is now, in physical pixels like `setPosition` (1.0.16+, exact on build 31+; older builds get an estimate from `screenX`). Use it for "move to the next monitor" or to save and restore the position |
 | `fullscreen()` / `exitFullscreen()` | Fullscreen (transparency preserved in `--widget`) |
 | `alwaysOnTop()` / `notAlwaysOnTop()` | Keep above other windows |
 | `mute()` / `unmute()` | Window audio (note: `unmute`, not `unMute`) |
-| `setIgnoreMouseEvents(ignore, {forward})` | **Whole-window click-through** — when `ignore` is true, clicks pass to the window behind |
+| `setIgnoreMouseEvents(ignore, {forward})` | **Whole-window click-through** — when `ignore` is true, clicks pass to the window behind. It pauses a running `clickThroughMask`/`clickThroughRegions` and `false` turns it back on (1.0.16+) |
 | `clickThroughRegions(selector)` / `stopClickThroughRegions()` | **Per-region click-through** — only matching elements' bounding boxes catch clicks; transparent areas pass through automatically |
 | `clickThroughMask(selector, {cell})` / `stopClickThroughMask()` | **Per-pixel click-through** — rasterises each widget's `border-radius` + CSS `clip-path` shape, so rounded/circular widgets pass clicks through their transparent corners (build 148+) |
 | `storage.get(key, fallback)` / `storage.set(key, value)` / `storage.remove(key)` | JSON values in localStorage that **survive a new Chromium profile** (1.0.9+). On a widget page (`/standalone/<Name>/`) with the desktopBridge plugin, the keys a widget writes (also plain `localStorage.setItem`) are copied to the user folder and put back on a fresh profile (one automatic reload). `storage.ready` resolves when the copy is loaded |
@@ -65,9 +66,9 @@ onframer.exe --widget --dev --url=https://your.app/
 ```
 - `--url=<url>` page to load · `--dev` DevTools
 - `--widget` frameless **+ transparent** (the see-through widget mode)
-- `?ofpos=3x2_1-2-1-1` (URL query) pre-position on a monitor grid cell
-- `--proxy-server=localhost:9000` route through the Proxy plugin (HTML injection)
-- `--widevine-cdm-path=<dir>` override the bundled Widevine CDM (DRM works without it)
+- `?ofpos=3x2_1-2-1-1` (URL query) pre-position on a monitor grid cell; the page must load
+  `onframer-utils.js` and call `ofScreens.init(1, 1)` on load (that reads it)
+- `--proxy-server=127.0.0.1:9000` route through the Proxy plugin (HTML injection)
 - `--user-data-dir=<path>` / `--cache-path=<path>` profile + cache
 
 ## Key patterns
@@ -78,7 +79,9 @@ onframer.exe --widget --dev --url=https://your.app/
   clicks. `clickThroughRegions(".ct-interactive")` = only the marked widgets' rectangles catch
   clicks, the transparent rest passes — automatic, no toggling. `clickThroughMask(".ct-interactive")`
   = **per-pixel**: rounded/circular/clip-path widgets pass clicks through their transparent corners
-  too. Mark interactive elements with `class="ct-interactive"`.
+  too. Mark interactive elements with `class="ct-interactive"`. A "ghost mode" (whole widget
+  click-through on top of a mask) is `setIgnoreMouseEvents(true)`; give it a way back that needs no
+  mouse (global hotkey or tray menu item) that calls `setIgnoreMouseEvents(false)`.
 - **Always-on-top widget**: `--widget` + `OnFramer.alwaysOnTop()` for HUDs/tickers.
 - **Window icon = the page favicon**, NOT the exe. Add `<link rel="icon" href="/favicon.ico">`.
 - **Multi-monitor**: read geometry from `monitorInfo()`; coords are pixels on the virtual
@@ -104,7 +107,7 @@ messages: Windows notifications, clipboard, media keys, what's playing now (any 
 Windows: Spotify, browsers), idle time, opening links. Use the ready client:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.15-beta/desktop-bridge.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.16-beta/desktop-bridge.js"></script>
 ```
 ```javascript
 const db = DesktopBridge.connect();                       // reconnects by itself
@@ -201,7 +204,7 @@ cap inputs (~4000 chars), and prefer aiBridge on integrated-GPU laptops (local m
 Widevine works **out of the box** — the plug-and-play bundles the CDM, so Widevine/EME content
 decrypts and plays like in Chrome. Serve your EME page over `https://` or `http://localhost`
 (EME is blocked on `file://` — opaque origin). To pin/replace the CDM, swap the `WidevineCdm`
-folder next to `onframer.exe` or launch with `--widevine-cdm-path`. Netflix/Disney+ also need a
+folder next to `onframer.exe` (same layout; there is no switch for another path). Netflix/Disney+ also need a
 commercial VMP-signed license (a contractual gate, not a flag).
 
 ## Gotchas (read these)
@@ -225,7 +228,7 @@ commercial VMP-signed license (a contractual gate, not a flag).
 ## Rules for the assistant
 
 When building an OnFramer app:
-1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.15-beta` (click-through, `OnFramer.storage`, `monitorInfo().rcWork`/`primary`, tray that survives Manager restarts, `db.saveFile`, `db.wake`).
+1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.16-beta` (`windowState()`, ghost mode over a mask, click-through, `OnFramer.storage`, `monitorInfo().rcWork`/`primary`, tray that survives Manager restarts, `db.saveFile`, `db.wake`).
 2. Wrap all `OnFramer.*` calls in `try/catch`; the page must not break in a browser.
 3. Add a favicon `<link>` (it becomes the window icon).
 4. For see-through widgets, set transparent CSS background and tell the user to run with `--widget`.
