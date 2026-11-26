@@ -21,7 +21,7 @@ Load it, then call `OnFramer.*`. **Every method returns a Promise.** Always wrap
 `try/catch` so the page still works when opened in a normal browser.
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.16-beta/onframer.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.17-beta/onframer.js"></script>
 ```
 
 | Method | Does |
@@ -107,7 +107,7 @@ messages: Windows notifications, clipboard, media keys, what's playing now (any 
 Windows: Spotify, browsers), idle time, opening links. Use the ready client:
 
 ```html
-<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.16-beta/desktop-bridge.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/soft2help/onframer-js@v1.0.17-beta/desktop-bridge.js"></script>
 ```
 ```javascript
 const db = DesktopBridge.connect();                       // reconnects by itself
@@ -122,12 +122,14 @@ db.on("hotkey", ({ combo }) => toggle());
 const { path } = await db.saveFile({ name: "tasks.json", content: json }); // Save as dialog → file ({canceled:true} if closed)
 await db.wake("systemBridge");                           // start a sleeping on-demand plugin (pages the Manager did not open)
 const { text } = await db.call("clipboard.read");
+const stopClip = db.onClipboard((text) => history.unshift(text)); // new text copied anywhere (polls every 1 s; 1.0.17+)
 await db.call("media", { action: "playpause" });          // next | prev | volup | voldown | mute
 const { seconds } = await db.call("idle");                // since the last input anywhere
 const { hex, ctrl } = await db.call("cursorColor");       // pixel under the mouse (EyeDropper is unavailable in CEF)
 const { png } = await db.call("capture", { x, y, w, h }); // screen region, physical px → base64 PNG
 await db.call("keepAwake", { on: true });                 // released automatically when the page disconnects
-const { files } = await db.call("recentFiles", { folder: "downloads", n: 10, icons: true }); // + openPath {path}
+const { files } = await db.call("recentFiles", { folder: "downloads", n: 10, icons: true }); // Downloads/Desktop/Documents
+await db.call("openPath", { path: files[0].path });       // opens a file or folder inside the user's folder only
 await db.call("launch", { id: "notepad" });                // only ids listed in the plugin config ("launchers")
 const { monitors } = await db.call("monitors");            // physical px rects + brightness (DDC/CI / WMI)
 await db.call("setBrightness", { index: 1, value: 40, via: monitors[1].brightness.via });
@@ -217,10 +219,22 @@ commercial VMP-signed license (a contractual gate, not a flag).
 - Plugins refuse `file://` pages: serve the folder (`onframer-cli dev <folder>`, or your own plugin).
 - Tray (`OnFramer.tray`, `minimizeToTray`) and desktopBridge need the Manager running. The tray icon is
   the page favicon (or `tray({ icon })`).
-  `onframer-cli manager restart` restarts it; pages using desktop-bridge.js and `tray()` reconnect.
-  `onframer-cli plugins list` / `plugins enable <name>` manage plugins from a terminal.
+  In Windows' tray settings every app's icon is listed as "OnFramer Manager" with the page `<title>` as
+  its tooltip. `onframer-cli manager restart` restarts it; pages using desktop-bridge.js and `tray()` reconnect.
+  `onframer-cli plugins list` / `plugins enable <name>` manage plugins from a terminal; `plugins wake <name>`
+  starts a sleeping plugin for a script with no page open; `onframer-cli version` shows the installed build.
+- Plugin settings (port, `"host": "0.0.0.0"` to open one to the LAN) go in `settings.json` in the plugin's data
+  folder (`%APPDATA%\OnFramer\<install id>\plugins\<name>\`), never in its `config.json` (updates replace it).
+- To show a third-party site that refuses iframes, or restyle it: Proxy `settings.json`
+  `"sites": [{ "host": "bbc.com", "allowFraming": true, "css": "header{display:none}", "js": "..." }]`
+  (https://docs.onframer.io/#use-proxy). Don't tell users to install the Proxy certificate in Windows:
+  widgets the Manager opens already trust it.
+- Two `onframer.exe` with the same `--user-data-dir` share one process (the second window ignores its own
+  flags): give each its own folder.
 - clickThroughRegions/Mask switch mode on mouse movement: in test scripts, move the pointer with real
-  input (SendInput/mouse_event, Playwright) before clicking; SetCursorPos is not seen.
+  input (SendInput/mouse_event, Playwright) before clicking; SetCursorPos is not seen. Hover ~1 s before
+  a click, and drag a `-webkit-app-region: drag` grip slowly (press, wait ~0.5 s, move in small steps):
+  a jump-then-click or a fast synthetic drag can be lost.
 - Your own Node plugin: a folder in the user plugins folder (Manager → Configuration → Open plugins
   folder) with `config.json` (`port`, `onDemand`), `index.js`, `start.bat`, `kill.bat`; full example:
   https://docs.onframer.io/#complete-app-plugin
@@ -228,7 +242,7 @@ commercial VMP-signed license (a contractual gate, not a flag).
 ## Rules for the assistant
 
 When building an OnFramer app:
-1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.16-beta` (`windowState()`, ghost mode over a mask, click-through, `OnFramer.storage`, `monitorInfo().rcWork`/`primary`, tray that survives Manager restarts, `db.saveFile`, `db.wake`).
+1. Load the SDK from the jsDelivr CDN; prefer `@v1.0.17-beta` (`windowState()`, ghost mode over a mask, click-through, `OnFramer.storage`, `monitorInfo().rcWork`/`primary`, tray that survives Manager restarts, `db.saveFile`, `db.wake`, `db.onClipboard`).
 2. Wrap all `OnFramer.*` calls in `try/catch`; the page must not break in a browser.
 3. Add a favicon `<link>` (it becomes the window icon).
 4. For see-through widgets, set transparent CSS background and tell the user to run with `--widget`.

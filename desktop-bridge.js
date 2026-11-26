@@ -9,6 +9,7 @@
 //   db.on('hotkey', ({ combo }) => ...);       // fires only for this page's combos
 //   await db.saveFile({ name, content });       // Windows "Save as" dialog, writes the file
 //   await db.wake('systemBridge');             // start a sleeping on-demand plugin
+//   const stop = db.onClipboard((text) => ...); // text copied anywhere on the PC (polls)
 //   db.up                                      // true while connected
 //
 // Reconnects on its own (4 s, then backing off to 30 s; every 30 s while hidden; at once when the
@@ -110,6 +111,29 @@
       // Start an on-demand plugin that is asleep (e.g. 'systemBridge') and wait until it listens.
       // Needed only for pages the Manager did not open itself (onframer-cli dev, onframer.exe --url).
       wake(name) { return this.call('wakePlugin', { name }, 20000); },
+      // Windows has no "clipboard changed" event for pages, so this polls clipboard.read every
+      // `every` ms (default 1000) while connected and the page is visible, and calls f(text) when
+      // the text differs from the last read. The text already there when it starts is not reported.
+      // Returns a function that stops it.
+      onClipboard(f, opts) {
+        const every = Math.max(250, (opts && opts.every) || 1000);
+        let last = null, stopped = false, timer = null, busy = false;
+        const self = this;
+        const tick = () => {
+          if (stopped) return;
+          timer = setTimeout(tick, every);
+          if (!up || busy || (global.document && global.document.hidden)) return;
+          busy = true;
+          self.call('clipboard.read').then((r) => {
+            busy = false;
+            const text = r && typeof r.text === 'string' ? r.text : '';
+            if (last === null) { last = text; return; }
+            if (text !== last) { last = text; if (!stopped) { try { f(text); } catch (e) {} } }
+          }, () => { busy = false; });
+        };
+        tick();
+        return () => { stopped = true; clearTimeout(timer); };
+      },
       call(cmd, args, timeoutMs) {
         return new Promise((ok, ko) => {
           if (!up) return ko(new Error('desktopBridge plugin not running'));
