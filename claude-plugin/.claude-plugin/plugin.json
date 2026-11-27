@@ -1,0 +1,9 @@
+{
+  "name": "onframer",
+  "version": "0.1.0",
+  "description": "Build OnFramer desktop apps and widgets on Windows: setup, the JavaScript SDK, transparency, click-through, desktop plugins and how to run them.",
+  "author": { "name": "Soft2Help", "url": "https://onframer.io" },
+  "homepage": "https://docs.onframer.io/#build-with-ai",
+  "repository": "https://github.com/soft2help/onframer-js",
+  "keywords": ["onframer", "desktop", "widget", "windows", "cef", "transparent", "overlay"]
+}
