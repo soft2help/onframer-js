@@ -24,3 +24,23 @@ This repository contains the essential JavaScript files and examples to help dev
 More information available at: [https://onframer.io/releases](https://onframer.io/releases)
 
 ---
+### 🤖 Build OnFramer apps with Claude Code
+
+This repository is also a Claude Code plugin marketplace. The `onframer` plugin gives Claude the
+`onframer-app` skill: how to check the install, where to put the app, a working transparent widget,
+how to run it with `onframer-cli dev`, the desktop-bridge plugins and the common mistakes.
+
+In Claude Code:
+
+```
+/plugin install onframer --marketplace soft2help/onframer-js
+```
+
+On older Claude Code versions, in two steps:
+
+```
+/plugin marketplace add soft2help/onframer-js
+/plugin install onframer@onframer
+```
+
+Then ask for an app ("make me a transparent clock widget with OnFramer") and Claude follows the skill.

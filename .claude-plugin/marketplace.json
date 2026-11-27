@@ -1,0 +1,15 @@
+{
+  "name": "onframer",
+  "owner": { "name": "Soft2Help", "url": "https://onframer.io" },
+  "metadata": { "description": "Claude Code plugins for building OnFramer desktop apps and widgets." },
+  "plugins": [
+    {
+      "name": "onframer",
+      "source": "./claude-plugin",
+      "description": "Build OnFramer desktop apps and widgets on Windows: setup, the JavaScript SDK, transparency, click-through, desktop plugins and how to run them.",
+      "version": "0.1.0",
+      "category": "development",
+      "homepage": "https://docs.onframer.io/#build-with-ai"
+    }
+  ]
+}
