@@ -59,6 +59,26 @@ Serves the folder on `http://127.0.0.1:5178/`, opens it as a `--widget` with Dev
 every save (installed with the Manager). Use it instead of `file://`: a `file://` page has no origin,
 so the plugins (desktopBridge, tray, notifications) refuse it — desktopBridge closes with code 4003.
 
+## Where the app lives (install it in the Manager)
+
+`onframer.exe` is only the window. Apps live in the **OnFramer Manager** (tray app), which runs the plugins
+and keeps apps across updates. An app has two places, and only two:
+
+- **Source** (what you edit): `%USERPROFILE%\OnFramerApps\<name>\` with `index.html` and `onframer-pack.json`.
+- **Installed** (daily use): a widget pack inside the Manager,
+  `%APPDATA%\OnFramer\<install id>\plugins\widgets\<id>\`, served at `http://<id>.localhost:9097/w/<id>/`.
+
+```
+onframer-cli apps install [folder]   # the Manager asks Yes/No (default No); again after changes = update
+onframer-cli apps list | apps open <id> | apps remove <id>
+```
+The first install writes `onframer-pack.json` (id, name, version, permissions). The installed app gets
+**only the permissions listed there** (the dev page gets all): `desktopBridge` (notify, storage…),
+`desktopBridge:save` (`db.saveFile`), `desktopBridge:hotkeys` (`db.hotkeys`), `desktopBridge:clipboard`,
+`:media`, `:files`, `:screen`… `apps install` adds the ones the page uses; `onframer-cli dev` warns when the
+page uses one the file doesn't list. Data saved while testing in `dev` is separate (another origin).
+Never install for the user: tell them to run `onframer-cli apps install` and click Yes.
+
 ## Launch arguments
 
 ```
@@ -258,9 +278,12 @@ When building an OnFramer app:
    widget page), not only localStorage. Export with `db.saveFile` (Save as dialog); Chromium's
    `showSaveFilePicker` can abort in small widgets.
 8. Tell the user to run the app with `onframer-cli dev <folder>`, never as `file://`.
+9. Keep the app in `%USERPROFILE%\OnFramerApps\<name>\`; when it works, tell the user to install it in the
+   Manager with `onframer-cli apps install` (they click Yes), not to run it from a shortcut or `file://`.
 
 ## Links
 
 - Docs: https://docs.onframer.io · Examples: https://examples.onframer.io · Releases: https://onframer.io/releases
 - API Playground (try every method): https://examples.onframer.io/standalone/Playground/
 - Starter template: https://examples.onframer.io/standalone/StarterTemplate/
+- Claude Code plugin with this guide as a skill (works in any folder): `/plugin install onframer --marketplace soft2help/onframer-js`

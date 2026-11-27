@@ -7,7 +7,7 @@
       "name": "onframer",
       "source": "./claude-plugin",
       "description": "Build OnFramer desktop apps and widgets on Windows: setup, the JavaScript SDK, transparency, click-through, desktop plugins and how to run them.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "development",
       "homepage": "https://docs.onframer.io/#build-with-ai"
     }

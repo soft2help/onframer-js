@@ -178,20 +178,33 @@ OnFramer gallery; don't use it for a user's own app. For everything else (`db.sa
 `db.hotkeys`, clipboard, media keys…) read the desktopBridge part of [reference.md](reference.md)
 before writing the call: the exact names and arguments are there. Catch every call.
 
-## 6. Running it every day (without `onframer-cli dev`)
+## 6. Install it in the Manager (where the app lives)
 
-`dev` is for building. For daily use, serve the folder with the Manager's webServer plugin and open
-it from a shortcut:
+`onframer.exe` is only the window. Apps live in the **OnFramer Manager** (the tray app). An app has two
+places, and only two:
 
-1. Manager tray → Configuration → Open plugins folder → `webServer` → create `settings.json`:
-   `{ "root": "C:\\Users\\<user>\\OnFramerApps\\notas", "port": 8088 }`
-2. `onframer-cli plugins enable webServer` (if it was already on: `plugins disable webServer`, then
-   `enable` again, so it reads the settings).
-3. Open it: `onframer --url="http://127.0.0.1:8088/"` (add `--widget` for a transparent widget).
-   Put that line in a shortcut, or in the Startup folder (`shell:startup`) to start with Windows.
+| What | Where |
+|---|---|
+| Source (what you edit) | `%USERPROFILE%\OnFramerApps\<name>\` with `index.html` + `onframer-pack.json` |
+| Installed (daily use) | a widget pack inside the Manager: `%APPDATA%\OnFramer\<install id>\plugins\widgets\<id>\`, opened from the Hub |
 
-One webServer serves one folder. There is no one-click installer for your own app yet; to share it,
-zip the folder (OnFramer's custom build service makes branded installers).
+When the app works, tell the user to run, from the app folder (`q` stops `dev` first):
+
+```powershell
+onframer-cli apps install          # the Manager asks Yes/No; nothing is installed until they click Yes
+onframer-cli apps open <id>        # or open it from the Manager's Hub
+```
+
+- **You can't click Yes for them.** Say they must answer the Manager's window.
+- Running `apps install` again after a change **updates** the app (same address and data).
+- `apps list`, `apps remove <id>` (asks first, kept in `widgets\.trash`).
+- The first install writes `onframer-pack.json` (id, name, version, permissions). The installed app gets
+  **only those permissions** (the `dev` page gets all). `apps install` adds what the page uses, and `dev`
+  prints `note: this page uses desktopBridge:save … not in onframer-pack.json` when one is missing. Names:
+  `desktopBridge` (notify, storage, open links), `desktopBridge:save` (`db.saveFile`),
+  `desktopBridge:hotkeys` (`db.hotkeys`), `desktopBridge:clipboard`, `:media`, `:files`, `:screen`.
+- The installed app has its own data (another origin): what was saved while testing in `dev` stays there.
+- Don't send the user to shortcuts, the webServer plugin or `file://` for daily use; `apps install` is the way.
 
 ## Gotchas that cost real users time
 
@@ -212,4 +225,5 @@ zip the folder (OnFramer's custom build service makes branded installers).
 1. The files written, with their full paths.
 2. The exact PowerShell lines to run, starting with the `cd`.
 3. What they should see, and how to stop it (`q` in the PowerShell window).
-4. Anything you could not verify.
+4. How to install it in the Manager when they're happy with it (`onframer-cli apps install`, click Yes).
+5. Anything you could not verify.
